@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npx expo start:*)",
+      "Bash(if exist node_modules rmdir /s /q node_modules)",
+      "Bash(if exist .expo rmdir /s /q .expo)",
+      "Bash(if exist package-lock.json del /f /q package-lock.json)",
+      "Bash(if exist index.js del index.js)",
+      "Bash(del /f index.js)",
+      "Bash(npx expo install:*)",
+      "Bash(dir \"C:\\\\Users\\\\Bevan\\\\Desktop\\\\New folder\" /b)",
+      "Bash(grep:*)",
+      "WebSearch",
+      "WebFetch(domain:docs.expo.dev)",
+      "Bash(node -e:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(powershell -Command \"Get-Content ''C:\\\\Users\\\\Bevan\\\\Desktop\\\\New folder\\\\screens\\\\ChatDetailScreen.js'' -Raw | Select-Object -First 1\")",
+      "Bash(powershell:*)"
+    ]
+  }
+}
