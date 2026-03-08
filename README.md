@@ -1,4 +1,4 @@
-# budie. - Study Partner Matching App
+# budie - Study Partner Matching App
 
 A Tinder-like mobile application for students to find study partners built with React Native, Expo, and Supabase.
 

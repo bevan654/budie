@@ -1,7 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { colors, typography, spacing } from '../constants/theme';
-import Button from './Button';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -29,11 +27,9 @@ class ErrorBoundary extends React.Component {
           <Text style={styles.message}>
             Something went wrong. Please try again.
           </Text>
-          <Button
-            title="Try Again"
-            onPress={this.handleReset}
-            style={styles.button}
-          />
+          <TouchableOpacity style={styles.button} onPress={this.handleReset}>
+            <Text style={styles.buttonText}>Try Again</Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -47,22 +43,35 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
-    padding: spacing.xxl,
+    backgroundColor: '#FAFAFA',
+    padding: 24,
   },
   title: {
-    ...typography.h1,
-    color: colors.textPrimary,
-    marginBottom: spacing.lg,
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 16,
   },
   message: {
-    ...typography.body,
-    color: colors.textSecondary,
+    fontSize: 15,
+    color: '#6B7280',
     textAlign: 'center',
-    marginBottom: spacing.xxl,
+    lineHeight: 22,
+    marginBottom: 24,
   },
   button: {
+    backgroundColor: '#1E319D',
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
     minWidth: 200,
+    alignItems: 'center',
+  },
+  buttonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
   },
 });
 

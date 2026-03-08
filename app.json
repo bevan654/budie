@@ -1,7 +1,14 @@
 {
   "expo": {
-    "name": "budie.",
-    "slug": "budie-app",
+    "name": "budie",
+    "slug": "budie",
+    "owner": "shajanbevan",
+    "extra": {
+      "eas": {
+        "projectId": "d8936943-cde6-47cb-8659-9ffa9231a3fb"
+      }
+    },
+    "scheme": "budie",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -36,21 +43,22 @@
         "expo-build-properties",
         {
           "android": {
-            "newArchEnabled": false
+            "newArchEnabled": true
           },
           "ios": {
-            "newArchEnabled": false
+            "newArchEnabled": true
           }
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow budie. to access your photos to update your profile picture.",
-          "cameraPermission": "Allow budie. to use your camera to take profile pictures."
+          "photosPermission": "Allow budie to access your photos to update your profile picture.",
+          "cameraPermission": "Allow budie to use your camera to take profile pictures."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-router"
     ]
   }
 }

@@ -1,152 +1,176 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { ActivityIndicator } from 'react-native';
+import { View, YStack, XStack, Text } from 'tamagui';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme } from '../contexts/ThemeContext';
+import { Image } from 'expo-image';
+import useThemeStore from '../stores/themeStore';
+import { lightColors, darkColors } from '../constants/theme';
 import { spacing, borderRadius } from '../constants/theme';
 
 export default function SwipeCard({ profile, onPress }) {
-  const { colors } = useTheme();
-  const styles = createStyles(colors);
+  const isDark = useThemeStore((s) => s.isDark);
+  const colors = isDark ? darkColors : lightColors;
   const [imageLoaded, setImageLoaded] = useState(false);
 
   return (
-    <TouchableOpacity style={styles.card} activeOpacity={0.95} onPress={onPress}>
+    <View
+      flex={1}
+      borderRadius={borderRadius.lg}
+      backgroundColor={colors.black}
+      overflow="hidden"
+      onPress={onPress}
+      pressStyle={{ opacity: 0.95 }}
+      cursor="pointer"
+    >
       <Image
         source={{ uri: profile.photo_url || 'https://via.placeholder.com/400' }}
-        style={[styles.image, !imageLoaded && { opacity: 0 }]}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100%',
+          height: '100%',
+          opacity: imageLoaded ? 1 : 0,
+        }}
+        contentFit="cover"
+        transition={200}
         onLoad={() => setImageLoaded(true)}
       />
+
       {!imageLoaded && (
-        <View style={styles.imagePlaceholder}>
+        <YStack
+          position="absolute"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          backgroundColor={colors.imagePlaceholder}
+          justifyContent="center"
+          alignItems="center"
+        >
           <ActivityIndicator color={colors.textTertiary} />
-        </View>
+        </YStack>
       )}
+
       <LinearGradient
         colors={['transparent', 'rgba(0,0,0,0.02)', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.85)']}
         locations={[0, 0.35, 0.65, 1]}
-        style={styles.gradient}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+        }}
       />
-      <View style={styles.infoContainer}>
-        <View style={styles.nameRow}>
-          <Text style={styles.name}>{profile.name}</Text>
-          <Text style={styles.age}>{profile.age}</Text>
-        </View>
-        <Text style={styles.pronouns}>{profile.pronouns}</Text>
 
-        <View style={styles.detailsRow}>
-          <Text style={styles.detailText}>{profile.course}</Text>
-          <View style={styles.dotSeparator} />
-          <Text style={styles.detailText}>Year {profile.course_year}</Text>
-        </View>
+      <YStack
+        position="absolute"
+        bottom={0}
+        left={0}
+        right={0}
+        padding={spacing.xl}
+        paddingBottom={110}
+      >
+        <XStack alignItems="baseline" gap={spacing.sm}>
+          <Text
+            fontSize={26}
+            fontFamily="Inter_700Bold"
+            color={colors.white}
+            letterSpacing={-0.2}
+          >
+            {profile.name}
+          </Text>
+          <Text
+            fontSize={20}
+            fontFamily="Inter_400Regular"
+            color="rgba(255,255,255,0.8)"
+          >
+            {profile.age}
+          </Text>
+        </XStack>
 
-        <View style={styles.tagsRow}>
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>{profile.study_time}</Text>
+        <Text
+          fontSize={13}
+          color="rgba(255,255,255,0.55)"
+          fontFamily="Inter_400Regular"
+          marginTop={2}
+          marginBottom={spacing.md}
+        >
+          {profile.pronouns}
+        </Text>
+
+        <XStack alignItems="center" marginBottom={spacing.md}>
+          <Text
+            fontSize={14}
+            color="rgba(255,255,255,0.75)"
+            fontFamily="Inter_500Medium"
+          >
+            {profile.course}
+          </Text>
+          <View
+            width={3}
+            height={3}
+            borderRadius={1.5}
+            backgroundColor="rgba(255,255,255,0.35)"
+            marginHorizontal={spacing.sm}
+          />
+          <Text
+            fontSize={14}
+            color="rgba(255,255,255,0.75)"
+            fontFamily="Inter_500Medium"
+          >
+            Year {profile.course_year}
+          </Text>
+        </XStack>
+
+        <XStack flexWrap="wrap" gap={6}>
+          <View
+            backgroundColor="rgba(255,255,255,0.15)"
+            paddingHorizontal={spacing.md}
+            paddingVertical={spacing.xs + 2}
+            borderRadius={borderRadius.sm}
+          >
+            <Text
+              fontSize={12}
+              fontFamily="Inter_500Medium"
+              color="rgba(255,255,255,0.85)"
+            >
+              {profile.study_time}
+            </Text>
           </View>
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>{profile.study_method}</Text>
+          <View
+            backgroundColor="rgba(255,255,255,0.15)"
+            paddingHorizontal={spacing.md}
+            paddingVertical={spacing.xs + 2}
+            borderRadius={borderRadius.sm}
+          >
+            <Text
+              fontSize={12}
+              fontFamily="Inter_500Medium"
+              color="rgba(255,255,255,0.85)"
+            >
+              {profile.study_method}
+            </Text>
           </View>
-          <View style={[styles.tag, styles.moodTag]}>
-            <Text style={styles.moodTagText}>{profile.current_mood}</Text>
+          <View
+            backgroundColor={`${colors.primary}73`}
+            paddingHorizontal={spacing.md}
+            paddingVertical={spacing.xs + 2}
+            borderRadius={borderRadius.sm}
+          >
+            <Text
+              fontSize={12}
+              fontFamily="Inter_500Medium"
+              color={colors.white}
+            >
+              {profile.current_mood}
+            </Text>
           </View>
-        </View>
-      </View>
-    </TouchableOpacity>
+        </XStack>
+      </YStack>
+    </View>
   );
 }
-
-const createStyles = (colors) => StyleSheet.create({
-  card: {
-    flex: 1,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.black,
-    overflow: 'hidden',
-  },
-  image: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
-    backgroundColor: colors.imagePlaceholder,
-  },
-  imagePlaceholder: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.imagePlaceholder,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gradient: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  infoContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: spacing.xl,
-    paddingBottom: 110,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: spacing.sm,
-  },
-  name: {
-    fontSize: 26,
-    fontFamily: 'Inter_700Bold',
-    color: colors.white,
-    letterSpacing: -0.2,
-  },
-  age: {
-    fontSize: 20,
-    fontFamily: 'Inter_400Regular',
-    color: 'rgba(255,255,255,0.8)',
-  },
-  pronouns: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.55)',
-    fontFamily: 'Inter_400Regular',
-    marginTop: 2,
-    marginBottom: spacing.md,
-  },
-  detailsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  detailText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.75)',
-    fontFamily: 'Inter_500Medium',
-  },
-  dotSeparator: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.35)',
-    marginHorizontal: spacing.sm,
-  },
-  tagsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  tag: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: borderRadius.sm,
-  },
-  tagText: {
-    fontSize: 12,
-    fontFamily: 'Inter_500Medium',
-    color: 'rgba(255,255,255,0.85)',
-  },
-  moodTag: {
-    backgroundColor: `${colors.primary}73`,
-  },
-  moodTagText: {
-    fontSize: 12,
-    fontFamily: 'Inter_500Medium',
-    color: colors.white,
-  },
-});

@@ -24,13 +24,25 @@ export const updateProfile = async (userId, updates) => {
 };
 
 export const fetchProfiles = async (currentUserId, likedIds = [], filters = {}) => {
+  // Get matched user IDs to exclude them
+  const { data: matches } = await supabase
+    .from('matches')
+    .select('user1_id, user2_id')
+    .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`);
+
+  const matchedIds = (matches || []).map((m) =>
+    m.user1_id === currentUserId ? m.user2_id : m.user1_id
+  );
+
+  const excludeIds = [...new Set([...likedIds, ...matchedIds])];
+
   let query = supabase
     .from('profiles')
     .select('*')
     .neq('id', currentUserId);
 
-  if (likedIds.length > 0) {
-    query = query.not('id', 'in', `(${likedIds.join(',')})`);
+  if (excludeIds.length > 0) {
+    query = query.not('id', 'in', `(${excludeIds.join(',')})`);
   }
 
   if (filters.universities?.length > 0) {

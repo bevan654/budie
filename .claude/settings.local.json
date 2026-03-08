@@ -17,7 +17,15 @@
       "Bash(node -e:*)",
       "Bash(npm uninstall:*)",
       "Bash(powershell -Command \"Get-Content ''C:\\\\Users\\\\Bevan\\\\Desktop\\\\New folder\\\\screens\\\\ChatDetailScreen.js'' -Raw | Select-Object -First 1\")",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(gh repo:*)",
+      "Bash(where gh:*)",
+      "Bash(ls:*)",
+      "Bash(rm:*)",
+      "Bash(cp:*)",
+      "Bash(npx expo-doctor:*)",
+      "Bash(node:*)",
+      "Bash(npm info:*)"
     ]
   }
 }

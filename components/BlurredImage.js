@@ -1,35 +1,30 @@
 import React from 'react';
-import { View, Image, StyleSheet } from 'react-native';
+import { View } from 'tamagui';
+import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
 
-export default function BlurredImage({ imageUri, isBlurred, style }) {
+export default function BlurredImage({ uri, blurred, style }) {
   return (
-    <View style={[styles.container, style]}>
+    <View overflow="hidden" {...style}>
       <Image
-        source={{ uri: imageUri || 'https://via.placeholder.com/400' }}
-        style={styles.image}
+        source={{ uri: uri || 'https://via.placeholder.com/400' }}
+        style={{ width: '100%', height: '100%' }}
+        contentFit="cover"
+        transition={200}
       />
-      {isBlurred && (
-        <BlurView intensity={50} tint="light" style={styles.blur} />
+      {blurred && (
+        <BlurView
+          intensity={50}
+          tint="light"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          }}
+        />
       )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  blur: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-});

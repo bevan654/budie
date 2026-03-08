@@ -1,6 +1,10 @@
-import React, { useRef } from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, Animated } from 'react-native';
-import { useTheme } from '../contexts/ThemeContext';
+import React from 'react';
+import { ActivityIndicator } from 'react-native';
+import { View, Text } from 'tamagui';
+import { Ionicons } from '@expo/vector-icons';
+import useThemeStore from '../stores/themeStore';
+import { lightColors, darkColors } from '../constants/theme';
+import { borderRadius } from '../constants/theme';
 import { hapticLight, hapticWarning } from '../utils/haptics';
 
 export default function Button({
@@ -9,29 +13,41 @@ export default function Button({
   variant = 'primary',
   loading = false,
   disabled = false,
+  icon,
+  iconPosition = 'left',
   style,
-  textStyle
 }) {
-  const { colors, buttonStyles } = useTheme();
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const isDark = useThemeStore((s) => s.isDark);
+  const colors = isDark ? darkColors : lightColors;
 
-  const getButtonStyle = () => {
+  const getVariantProps = () => {
     switch (variant) {
       case 'secondary':
-        return buttonStyles.secondary;
+        return {
+          backgroundColor: colors.backgroundSecondary,
+        };
       case 'outline':
-        return buttonStyles.outline;
+        return {
+          backgroundColor: 'transparent',
+          borderWidth: 1,
+          borderColor: colors.borderDark,
+        };
       case 'danger':
-        return buttonStyles.danger;
+        return {
+          backgroundColor: 'transparent',
+          borderWidth: 1,
+          borderColor: colors.error,
+        };
       default:
-        return buttonStyles.primary;
+        return {
+          backgroundColor: colors.primary,
+        };
     }
   };
 
   const getTextColor = () => {
     switch (variant) {
       case 'secondary':
-        return colors.textPrimary;
       case 'outline':
         return colors.textPrimary;
       case 'danger':
@@ -41,22 +57,8 @@ export default function Button({
     }
   };
 
-  const handlePressIn = () => {
-    Animated.timing(scaleAnim, {
-      toValue: 0.97,
-      duration: 80,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-    }).start();
-  };
-
   const handlePress = () => {
+    if (disabled || loading) return;
     if (variant === 'danger') {
       hapticWarning();
     } else {
@@ -65,40 +67,49 @@ export default function Button({
     onPress?.();
   };
 
+  const textColor = getTextColor();
+  const variantProps = getVariantProps();
+
+  const renderIcon = () => {
+    if (!icon) return null;
+    return <Ionicons name={icon} size={18} color={textColor} />;
+  };
+
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity
-        style={[
-          getButtonStyle(),
-          (disabled || loading) && styles.disabled,
-          style
-        ]}
-        onPress={handlePress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        disabled={disabled || loading}
-        activeOpacity={0.7}
-      >
-        {loading ? (
-          <ActivityIndicator color={getTextColor()} />
-        ) : (
-          <Text style={[styles.text, { color: getTextColor() }, textStyle]}>
+    <View
+      flexDirection="row"
+      alignItems="center"
+      justifyContent="center"
+      gap={8}
+      borderRadius={borderRadius.md}
+      paddingVertical={14}
+      paddingHorizontal={24}
+      opacity={disabled || loading ? 0.5 : 1}
+      animation="fast"
+      pressStyle={{ scale: 0.97 }}
+      onPress={handlePress}
+      disabled={disabled || loading}
+      cursor={disabled || loading ? 'not-allowed' : 'pointer'}
+      {...variantProps}
+      {...style}
+    >
+      {loading ? (
+        <ActivityIndicator color={textColor} />
+      ) : (
+        <>
+          {icon && iconPosition === 'left' && renderIcon()}
+          <Text
+            fontSize={15}
+            fontFamily="Inter_600SemiBold"
+            textAlign="center"
+            letterSpacing={0.2}
+            color={textColor}
+          >
             {title}
           </Text>
-        )}
-      </TouchableOpacity>
-    </Animated.View>
+          {icon && iconPosition === 'right' && renderIcon()}
+        </>
+      )}
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  text: {
-    fontSize: 15,
-    fontFamily: 'Inter_600SemiBold',
-    textAlign: 'center',
-    letterSpacing: 0.2,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-});
