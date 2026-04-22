@@ -71,7 +71,7 @@ export default function SignUpStep4Account({ navigation }) {
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
 
-        <SignUpProgressBar currentStep={6} />
+        <SignUpProgressBar currentStep={7} />
 
         <View style={styles.header}>
           <View style={styles.iconWrap}>
@@ -169,7 +169,7 @@ const createStyles = (colors) => StyleSheet.create({
     marginBottom: spacing.md,
   },
   header: {
-    marginBottom: spacing.xxxl,
+    marginBottom: spacing.xxl,
   },
   iconWrap: {
     width: 52,
@@ -194,7 +194,7 @@ const createStyles = (colors) => StyleSheet.create({
     flex: 1,
   },
   inputGroup: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   inputLabel: {
     ...typography.label,

@@ -23,9 +23,18 @@ import { getErrorMessage } from '../utils/errorMessages';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PhotoUploadButton from '../components/PhotoUploadButton';
+import FilterChip from '../components/FilterChip';
+import PickerModal from '../components/PickerModal';
+import {
+  PROMPT_QUESTIONS,
+  INTEREST_OPTIONS,
+  DAY_OPTIONS,
+  MAX_PROMPTS,
+  MAX_SUBJECTS,
+} from '../constants/profileOptions';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const PHOTO_HEIGHT = 360;
+const PHOTO_HEIGHT = Math.round(SCREEN_WIDTH * 1.15);
 
 export default function ProfileScreen({ navigation }) {
   const [editing, setEditing] = useState(false);
@@ -40,7 +49,13 @@ export default function ProfileScreen({ navigation }) {
     age: '',
     pronouns: '',
     bio: '',
+    prompts: [],
+    subjects: [],
+    interests: [],
+    availability: [],
   });
+  const [subjectInput, setSubjectInput] = useState('');
+  const [pickerSlot, setPickerSlot] = useState(null);
 
   const { userId } = useAuth();
   const { profile, loading, updateProfile: updateProfileService, refetch } = useProfile(userId);
@@ -49,43 +64,25 @@ export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, inputStyles, insets), [colors, inputStyles, insets]);
 
+  const hydrateForm = (p) => ({
+    name: p?.name || '',
+    course: p?.course || '',
+    course_year: p?.course_year || '',
+    study_time: p?.study_time || '',
+    study_method: p?.study_method || '',
+    current_mood: p?.current_mood || '',
+    age: p?.age?.toString() || '',
+    pronouns: p?.pronouns || '',
+    bio: p?.bio || '',
+    prompts: Array.isArray(p?.prompts) ? p.prompts : [],
+    subjects: Array.isArray(p?.subjects) ? p.subjects : [],
+    interests: Array.isArray(p?.interests) ? p.interests : [],
+    availability: Array.isArray(p?.availability) ? p.availability : [],
+  });
+
   useEffect(() => {
-    if (profile) {
-      setFormData({
-        name: profile.name || '',
-        course: profile.course || '',
-        course_year: profile.course_year || '',
-        study_time: profile.study_time || '',
-        study_method: profile.study_method || '',
-        current_mood: profile.current_mood || '',
-        age: profile.age?.toString() || '',
-        pronouns: profile.pronouns || '',
-        bio: profile.bio || '',
-      });
-    }
+    if (profile) setFormData(hydrateForm(profile));
   }, [profile]);
-
-  const completionPercentage = useMemo(() => {
-    if (!profile) return 0;
-    const fields = ['name', 'course', 'course_year', 'study_time', 'study_method', 'current_mood', 'age', 'pronouns', 'bio', 'photo_url'];
-    const filled = fields.filter(f => profile[f] && String(profile[f]).trim() !== '').length;
-    return Math.round((filled / fields.length) * 100);
-  }, [profile]);
-
-  const isFormDirty = () => {
-    if (!profile) return false;
-    return (
-      formData.name !== (profile.name || '') ||
-      formData.course !== (profile.course || '') ||
-      formData.course_year !== (profile.course_year || '') ||
-      formData.study_time !== (profile.study_time || '') ||
-      formData.study_method !== (profile.study_method || '') ||
-      formData.current_mood !== (profile.current_mood || '') ||
-      formData.age !== (profile.age?.toString() || '') ||
-      formData.pronouns !== (profile.pronouns || '') ||
-      formData.bio !== (profile.bio || '')
-    );
-  };
 
   const handleSave = async () => {
     Keyboard.dismiss();
@@ -103,6 +100,10 @@ export default function ProfileScreen({ navigation }) {
 
     setSaving(true);
     try {
+      const cleanedPrompts = formData.prompts
+        .filter(p => p.question && p.answer?.trim())
+        .map(p => ({ question: p.question, answer: p.answer.trim() }));
+
       await updateProfileService({
         name: formData.name,
         course: formData.course,
@@ -113,10 +114,14 @@ export default function ProfileScreen({ navigation }) {
         age: parseInt(formData.age),
         pronouns: formData.pronouns,
         bio: formData.bio,
+        prompts: cleanedPrompts,
+        subjects: formData.subjects,
+        interests: formData.interests,
+        availability: formData.availability,
       });
 
       setEditing(false);
-      showToast({ message: 'Profile updated successfully', type: 'success' });
+      showToast({ message: 'Profile updated', type: 'success' });
     } catch (error) {
       showToast({ message: getErrorMessage(error), type: 'error' });
     } finally {
@@ -126,57 +131,72 @@ export default function ProfileScreen({ navigation }) {
 
   const handleCancel = () => {
     Keyboard.dismiss();
-    if (isFormDirty()) {
-      Alert.alert(
-        'Discard Changes?',
-        'You have unsaved changes. Are you sure you want to discard them?',
-        [
-          { text: 'Keep Editing', style: 'cancel' },
-          {
-            text: 'Discard',
-            style: 'destructive',
-            onPress: () => {
-              if (profile) {
-                setFormData({
-                  name: profile.name || '',
-                  course: profile.course || '',
-                  course_year: profile.course_year || '',
-                  study_time: profile.study_time || '',
-                  study_method: profile.study_method || '',
-                  current_mood: profile.current_mood || '',
-                  age: profile.age?.toString() || '',
-                  pronouns: profile.pronouns || '',
-                  bio: profile.bio || '',
-                });
-              }
-              setEditing(false);
-            },
+    const isDirty = JSON.stringify(formData) !== JSON.stringify(hydrateForm(profile));
+    if (isDirty) {
+      Alert.alert('Discard changes?', 'You have unsaved changes.', [
+        { text: 'Keep editing', style: 'cancel' },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => {
+            if (profile) setFormData(hydrateForm(profile));
+            setEditing(false);
           },
-        ]
-      );
+        },
+      ]);
     } else {
       setEditing(false);
     }
   };
 
-  const handlePhotoUpload = () => {
-    refetch();
+  const handlePhotoUpload = () => refetch();
+
+  // Prompt helpers (edit mode)
+  const addPrompt = (question) => {
+    if (formData.prompts.length >= MAX_PROMPTS) return;
+    setFormData({
+      ...formData,
+      prompts: [...formData.prompts, { question, answer: '' }],
+    });
+  };
+  const replacePromptQuestion = (idx, question) => {
+    const next = [...formData.prompts];
+    next[idx] = { ...next[idx], question };
+    setFormData({ ...formData, prompts: next });
+  };
+  const updatePromptAnswer = (idx, answer) => {
+    const next = [...formData.prompts];
+    next[idx] = { ...next[idx], answer };
+    setFormData({ ...formData, prompts: next });
+  };
+  const removePrompt = (idx) => {
+    setFormData({ ...formData, prompts: formData.prompts.filter((_, i) => i !== idx) });
+  };
+
+  // Subject helpers (edit mode)
+  const addSubject = () => {
+    const trimmed = subjectInput.trim();
+    if (!trimmed) return;
+    if (formData.subjects.includes(trimmed)) { setSubjectInput(''); return; }
+    if (formData.subjects.length >= MAX_SUBJECTS) return;
+    setFormData({ ...formData, subjects: [...formData.subjects, trimmed] });
+    setSubjectInput('');
+  };
+  const removeSubject = (s) =>
+    setFormData({ ...formData, subjects: formData.subjects.filter(x => x !== s) });
+
+  // Interest / availability toggles
+  const toggleFrom = (key, value) => {
+    const list = formData[key] || [];
+    setFormData({
+      ...formData,
+      [key]: list.includes(value) ? list.filter(x => x !== value) : [...list, value],
+    });
   };
 
   if (loading) {
     return <LoadingSpinner />;
   }
-
-  const renderInfoRow = (icon, label, value) => {
-    if (!value) return null;
-    return (
-      <View style={styles.infoRow}>
-        <Ionicons name={icon} size={18} color={colors.textTertiary} style={styles.infoRowIcon} />
-        <Text style={styles.infoRowLabel}>{label}</Text>
-        <Text style={styles.infoRowValue}>{value}</Text>
-      </View>
-    );
-  };
 
   const renderEditField = (label, key, options = {}) => (
     <View style={styles.field}>
@@ -186,7 +206,7 @@ export default function ProfileScreen({ navigation }) {
         value={formData[key]}
         onChangeText={(text) => setFormData({ ...formData, [key]: text })}
         placeholderTextColor={colors.textTertiary}
-        placeholder={options.placeholder || `Enter ${label.toLowerCase()}`}
+        placeholder={options.placeholder || label}
         keyboardType={options.keyboardType || 'default'}
         multiline={options.multiline || false}
         numberOfLines={options.numberOfLines || 1}
@@ -194,13 +214,37 @@ export default function ProfileScreen({ navigation }) {
     </View>
   );
 
+  const metaLine = [profile?.course, profile?.course_year].filter(Boolean).join('  ·  ');
+  const hasVibeChips = profile?.study_time || profile?.study_method || profile?.current_mood;
+  const hasPrompts = Array.isArray(profile?.prompts) && profile.prompts.length > 0;
+  const hasSubjects = Array.isArray(profile?.subjects) && profile.subjects.length > 0;
+  const hasInterests = Array.isArray(profile?.interests) && profile.interests.length > 0;
+  const hasAvailability = Array.isArray(profile?.availability) && profile.availability.length > 0;
+  const isEmpty =
+    !profile?.bio && !hasVibeChips && !metaLine && !hasPrompts && !hasSubjects && !hasInterests && !hasAvailability;
+
+  const availableQuestionsForAdd = PROMPT_QUESTIONS.filter(
+    q => !formData.prompts.some(p => p.question === q)
+  );
+
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={styles.scrollContent}
+    >
       {/* Hero Photo */}
       <View style={styles.heroContainer}>
         <Image
           source={{ uri: profile?.photo_url || 'https://via.placeholder.com/400' }}
           style={styles.heroImage}
+        />
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.75)']}
+          locations={[0, 0.55, 1]}
+          style={styles.heroGradient}
+          pointerEvents="none"
         />
         <TouchableOpacity
           style={styles.settingsButton}
@@ -236,101 +280,249 @@ export default function ProfileScreen({ navigation }) {
             </TouchableOpacity>
           </>
         ) : (
-          <TouchableOpacity style={styles.editBtn} onPress={() => setEditing(true)}>
-            <Ionicons name="create-outline" size={18} color={colors.primary} style={{ marginRight: 6 }} />
-            <Text style={styles.editBtnText}>Edit Profile</Text>
+          <TouchableOpacity style={styles.editBtn} onPress={() => setEditing(true)} activeOpacity={0.7}>
+            <Ionicons name="pencil" size={15} color={colors.textPrimary} style={{ marginRight: 8 }} />
+            <Text style={styles.editBtnText}>Edit profile</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Completion Bar */}
-      {completionPercentage < 100 && (
-        <View style={styles.completionWrap}>
-          <View style={styles.completionRow}>
-            <Text style={styles.completionLabel}>Profile completion</Text>
-            <Text style={styles.completionPct}>{completionPercentage}%</Text>
-          </View>
-          <View style={styles.progressBg}>
-            <View style={[styles.progressFill, { width: `${completionPercentage}%` }]} />
-          </View>
-        </View>
-      )}
-
       <View style={styles.body}>
         {editing ? (
           <>
-            {/* Edit: Personal */}
-            <Text style={styles.sectionLabel}>Personal</Text>
             {renderEditField('Name', 'name')}
             {renderEditField('Age', 'age', { keyboardType: 'numeric' })}
-            {renderEditField('Pronouns', 'pronouns', { placeholder: 'e.g. he/him, she/her' })}
-
-            <View style={styles.divider} />
-
-            {/* Edit: Academic */}
-            <Text style={styles.sectionLabel}>Academic</Text>
+            {renderEditField('Pronouns', 'pronouns', { placeholder: 'she/her, he/him, they/them' })}
             {renderEditField('Course', 'course')}
-            {renderEditField('Year', 'course_year', { placeholder: 'e.g. 2nd Year' })}
+            {renderEditField('Year', 'course_year', { placeholder: '2nd Year' })}
+            {renderEditField('Study time', 'study_time', { placeholder: 'Mornings, Evenings' })}
+            {renderEditField('Study method', 'study_method', { placeholder: 'Group, Solo, Library' })}
+            {renderEditField('Mood', 'current_mood', { placeholder: 'Focused, Chill' })}
+            {renderEditField('Bio', 'bio', { multiline: true, numberOfLines: 4, placeholder: 'A few lines about yourself...' })}
 
-            <View style={styles.divider} />
+            {/* Prompts editor */}
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Prompts</Text>
+              {formData.prompts.map((p, idx) => (
+                <View key={idx} style={styles.promptEditCard}>
+                  <TouchableOpacity
+                    onPress={() => setPickerSlot({ mode: 'replace', idx })}
+                    activeOpacity={0.6}
+                    style={styles.promptQuestionRow}
+                  >
+                    <Text style={styles.promptQuestion}>{p.question}</Text>
+                    <Ionicons name="swap-horizontal" size={16} color={colors.textTertiary} />
+                  </TouchableOpacity>
+                  <TextInput
+                    style={styles.promptAnswer}
+                    placeholder="Your answer…"
+                    placeholderTextColor={colors.textTertiary}
+                    value={p.answer || ''}
+                    onChangeText={(t) => updatePromptAnswer(idx, t)}
+                    multiline
+                    maxLength={150}
+                  />
+                  <View style={styles.promptFooter}>
+                    <Text style={styles.charCount}>{(p.answer || '').length}/150</Text>
+                    <TouchableOpacity onPress={() => removePrompt(idx)}>
+                      <Text style={styles.removeLink}>Remove</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+              {formData.prompts.length < MAX_PROMPTS && availableQuestionsForAdd.length > 0 && (
+                <TouchableOpacity
+                  style={styles.addPromptButton}
+                  onPress={() => setPickerSlot({ mode: 'add' })}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="add" size={18} color={colors.primary} style={{ marginRight: 6 }} />
+                  <Text style={styles.addPromptText}>
+                    {formData.prompts.length === 0 ? 'Pick a prompt' : 'Add another'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
 
-            {/* Edit: Study */}
-            <Text style={styles.sectionLabel}>Study Preferences</Text>
-            {renderEditField('Study Time', 'study_time', { placeholder: 'e.g. Mornings, Evenings' })}
-            {renderEditField('Study Method', 'study_method', { placeholder: 'e.g. Group Study, Library' })}
-            {renderEditField('Mood', 'current_mood', { placeholder: 'e.g. Focused, Chill' })}
+            {/* Subjects editor */}
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Subjects this term</Text>
+              <View style={styles.subjectInputRow}>
+                <TextInput
+                  style={[styles.fieldInput, { flex: 1 }]}
+                  placeholder="Microeconomics, COMP1511…"
+                  placeholderTextColor={colors.textTertiary}
+                  value={subjectInput}
+                  onChangeText={setSubjectInput}
+                  onSubmitEditing={addSubject}
+                  returnKeyType="done"
+                  maxLength={40}
+                />
+                <TouchableOpacity
+                  style={[styles.addSubjectBtn, !subjectInput.trim() && { opacity: 0.4 }]}
+                  onPress={addSubject}
+                  disabled={!subjectInput.trim()}
+                >
+                  <Ionicons name="add" size={18} color="#fff" />
+                </TouchableOpacity>
+              </View>
+              {formData.subjects.length > 0 && (
+                <View style={styles.chipContainer}>
+                  {formData.subjects.map(s => (
+                    <TouchableOpacity
+                      key={s}
+                      onPress={() => removeSubject(s)}
+                      activeOpacity={0.7}
+                      style={styles.removableChip}
+                    >
+                      <Text style={styles.removableChipText}>{s}</Text>
+                      <Ionicons name="close" size={14} color={colors.primary} style={{ marginLeft: 6 }} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
 
-            <View style={styles.divider} />
+            {/* Interests editor */}
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Interests</Text>
+              <View style={styles.chipContainer}>
+                {INTEREST_OPTIONS.map(i => (
+                  <FilterChip
+                    key={i}
+                    label={i}
+                    selected={formData.interests.includes(i)}
+                    onPress={() => toggleFrom('interests', i)}
+                  />
+                ))}
+              </View>
+            </View>
 
-            {/* Edit: Bio */}
-            <Text style={styles.sectionLabel}>About Me</Text>
-            {renderEditField('Bio', 'bio', { multiline: true, numberOfLines: 4, placeholder: 'Tell others about yourself...' })}
+            {/* Availability editor */}
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>When you're free</Text>
+              <View style={styles.chipContainer}>
+                {DAY_OPTIONS.map(d => (
+                  <FilterChip
+                    key={d}
+                    label={d}
+                    selected={formData.availability.includes(d)}
+                    onPress={() => toggleFrom('availability', d)}
+                  />
+                ))}
+              </View>
+            </View>
           </>
         ) : (
           <>
-            {/* View: Academic */}
-            <Text style={styles.sectionLabel}>Academic</Text>
-            {renderInfoRow('school-outline', 'Course', profile?.course)}
-            {renderInfoRow('layers-outline', 'Year', profile?.course_year)}
+            {metaLine ? <Text style={styles.metaLine}>{metaLine}</Text> : null}
 
-            <View style={styles.divider} />
+            {profile?.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
 
-            {/* View: Study Preferences */}
-            <Text style={styles.sectionLabel}>Study Preferences</Text>
-            <View style={styles.chipRow}>
-              {profile?.study_time ? (
-                <View style={styles.chip}>
-                  <Ionicons name="time-outline" size={14} color={colors.primary} />
-                  <Text style={styles.chipText}>{profile.study_time}</Text>
-                </View>
-              ) : null}
-              {profile?.study_method ? (
-                <View style={styles.chip}>
-                  <Ionicons name="people-outline" size={14} color={colors.primary} />
-                  <Text style={styles.chipText}>{profile.study_method}</Text>
-                </View>
-              ) : null}
-              {profile?.current_mood ? (
-                <View style={styles.chip}>
-                  <Ionicons name="happy-outline" size={14} color={colors.primary} />
-                  <Text style={styles.chipText}>{profile.current_mood}</Text>
-                </View>
-              ) : null}
-            </View>
+            {hasPrompts && (
+              <View style={styles.promptsStack}>
+                {profile.prompts.map((p, idx) => (
+                  <View key={idx} style={styles.promptCard}>
+                    <Text style={styles.promptCardQuestion}>{p.question}</Text>
+                    <Text style={styles.promptCardAnswer}>{p.answer}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
 
-            {/* View: Bio */}
-            {profile?.bio ? (
-              <>
-                <View style={styles.divider} />
-                <Text style={styles.sectionLabel}>About Me</Text>
-                <Text style={styles.bioText}>{profile.bio}</Text>
-              </>
-            ) : null}
+            {hasSubjects && (
+              <View style={styles.chipGroup}>
+                <Text style={styles.chipGroupLabel}>studying this term</Text>
+                <View style={styles.chipRow}>
+                  {profile.subjects.map(s => (
+                    <View key={s} style={styles.tagChip}>
+                      <Text style={styles.tagChipText}>{s}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {hasAvailability && (
+              <View style={styles.chipGroup}>
+                <Text style={styles.chipGroupLabel}>usually free</Text>
+                <View style={styles.chipRow}>
+                  {profile.availability.map(d => (
+                    <View key={d} style={styles.tagChip}>
+                      <Text style={styles.tagChipText}>{d}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {hasVibeChips && (
+              <View style={styles.chipGroup}>
+                <Text style={styles.chipGroupLabel}>study vibe</Text>
+                <View style={styles.chipRow}>
+                  {profile?.study_time ? (
+                    <View style={styles.chip}>
+                      <Ionicons name="time-outline" size={14} color={colors.primary} />
+                      <Text style={styles.chipText}>{profile.study_time}</Text>
+                    </View>
+                  ) : null}
+                  {profile?.study_method ? (
+                    <View style={styles.chip}>
+                      <Ionicons name="people-outline" size={14} color={colors.primary} />
+                      <Text style={styles.chipText}>{profile.study_method}</Text>
+                    </View>
+                  ) : null}
+                  {profile?.current_mood ? (
+                    <View style={styles.chip}>
+                      <Ionicons name="sparkles-outline" size={14} color={colors.primary} />
+                      <Text style={styles.chipText}>{profile.current_mood}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            )}
+
+            {hasInterests && (
+              <View style={styles.chipGroup}>
+                <Text style={styles.chipGroupLabel}>into</Text>
+                <View style={styles.chipRow}>
+                  {profile.interests.map(i => (
+                    <View key={i} style={styles.tagChip}>
+                      <Text style={styles.tagChipText}>{i}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {isEmpty && (
+              <Text style={styles.emptyHint}>
+                Your profile is looking a little empty — tap Edit profile to add your details.
+              </Text>
+            )}
           </>
         )}
       </View>
 
-      <View style={{ height: 40 }} />
+      <PickerModal
+        visible={!!pickerSlot}
+        onClose={() => setPickerSlot(null)}
+        title="Choose a prompt"
+        data={
+          pickerSlot?.mode === 'replace'
+            ? PROMPT_QUESTIONS.filter(
+                q => !formData.prompts.some((p, i) => p.question === q && i !== pickerSlot.idx)
+              )
+            : availableQuestionsForAdd
+        }
+        onSelect={(q) => {
+          if (pickerSlot?.mode === 'replace') {
+            replacePromptQuestion(pickerSlot.idx, q);
+          } else {
+            addPrompt(q);
+          }
+        }}
+      />
     </ScrollView>
   );
 }
@@ -339,6 +531,9 @@ const createStyles = (colors, inputStyles, insets) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  scrollContent: {
+    paddingBottom: 48,
   },
 
   // Hero
@@ -360,21 +555,21 @@ const createStyles = (colors, inputStyles, insets) => StyleSheet.create({
   },
   heroInfo: {
     position: 'absolute',
-    bottom: 22,
-    left: 22,
-    right: 22,
+    bottom: 26,
+    left: 24,
+    right: 80,
   },
   heroName: {
-    fontSize: 28,
+    fontSize: 30,
     fontFamily: 'Inter_700Bold',
     color: '#fff',
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   },
   heroPronouns: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.88)',
     fontFamily: 'Inter_500Medium',
-    marginTop: 2,
+    marginTop: 4,
   },
   settingsButton: {
     position: 'absolute',
@@ -383,18 +578,17 @@ const createStyles = (colors, inputStyles, insets) => StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.28)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
   },
 
-  // Actions
+  // Action row
   actionRow: {
     flexDirection: 'row',
-    paddingHorizontal: 22,
+    paddingHorizontal: 24,
     paddingTop: spacing.lg,
-    paddingBottom: spacing.xs,
     gap: 10,
   },
   editBtn: {
@@ -402,24 +596,22 @@ const createStyles = (colors, inputStyles, insets) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: borderRadius.md,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
+    paddingVertical: 13,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.backgroundSecondary,
   },
   editBtnText: {
     fontSize: 15,
     fontFamily: 'Inter_600SemiBold',
-    color: colors.primary,
+    color: colors.textPrimary,
   },
   cancelBtn: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: borderRadius.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    paddingVertical: 13,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.backgroundSecondary,
   },
   cancelBtnText: {
     fontSize: 15,
@@ -431,8 +623,8 @@ const createStyles = (colors, inputStyles, insets) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: borderRadius.md,
+    paddingVertical: 13,
+    borderRadius: borderRadius.full,
     backgroundColor: colors.primary,
   },
   saveBtnText: {
@@ -441,87 +633,59 @@ const createStyles = (colors, inputStyles, insets) => StyleSheet.create({
     color: '#fff',
   },
 
-  // Completion
-  completionWrap: {
-    paddingHorizontal: 22,
-    paddingTop: spacing.lg,
-  },
-  completionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  completionLabel: {
-    fontSize: 13,
-    fontFamily: 'Inter_500Medium',
-    color: colors.textTertiary,
-  },
-  completionPct: {
-    fontSize: 13,
-    fontFamily: 'Inter_700Bold',
-    color: colors.primary,
-  },
-  progressBg: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 2,
-    backgroundColor: colors.primary,
-  },
-
   // Body
   body: {
-    paddingHorizontal: 22,
-    paddingTop: spacing.xxl,
+    paddingHorizontal: 24,
+    paddingTop: spacing.xl,
   },
 
-  // Section Labels
-  sectionLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-    color: colors.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: spacing.md,
-  },
-
-  // Divider
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-    marginVertical: spacing.xxl,
-  },
-
-  // Info Rows
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 13,
-  },
-  infoRowIcon: {
-    marginRight: 14,
-    width: 20,
-    textAlign: 'center',
-  },
-  infoRowLabel: {
-    fontSize: 15,
+  metaLine: {
+    fontSize: 14,
+    fontFamily: 'Inter_500Medium',
     color: colors.textSecondary,
-    width: 70,
+    marginBottom: spacing.lg,
   },
-  infoRowValue: {
-    flex: 1,
-    fontSize: 15,
+  bio: {
+    fontSize: 17,
+    lineHeight: 26,
+    color: colors.textPrimary,
+    fontFamily: 'Inter_400Regular',
+    marginBottom: spacing.xl,
+  },
+
+  // Prompt cards (view)
+  promptsStack: {
+    marginBottom: spacing.xl,
+  },
+  promptCard: {
+    backgroundColor: colors.backgroundSecondary,
+    padding: 18,
+    borderRadius: borderRadius.lg,
+    marginBottom: 12,
+  },
+  promptCardQuestion: {
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+    color: colors.textTertiary,
+    marginBottom: 6,
+  },
+  promptCardAnswer: {
+    fontSize: 18,
+    lineHeight: 26,
     fontFamily: 'Inter_500Medium',
     color: colors.textPrimary,
-    textAlign: 'right',
   },
 
-  // Chips
+  // Chip groups (view)
+  chipGroup: {
+    marginBottom: spacing.lg,
+  },
+  chipGroupLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter_500Medium',
+    color: colors.textTertiary,
+    marginBottom: 8,
+  },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -532,7 +696,7 @@ const createStyles = (colors, inputStyles, insets) => StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     backgroundColor: colors.primaryLight,
-    paddingHorizontal: 14,
+    paddingHorizontal: 13,
     paddingVertical: 8,
     borderRadius: borderRadius.full,
   },
@@ -541,12 +705,22 @@ const createStyles = (colors, inputStyles, insets) => StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     color: colors.primary,
   },
+  tagChip: {
+    backgroundColor: colors.backgroundSecondary,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: borderRadius.full,
+  },
+  tagChipText: {
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+    color: colors.textPrimary,
+  },
 
-  // Bio
-  bioText: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    lineHeight: 23,
+  emptyHint: {
+    fontSize: 14,
+    color: colors.textTertiary,
+    lineHeight: 22,
   },
 
   // Edit fields
@@ -565,5 +739,99 @@ const createStyles = (colors, inputStyles, insets) => StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: 'top',
+  },
+
+  // Prompt edit cards
+  promptEditCard: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.lg,
+    padding: 14,
+    marginBottom: 10,
+  },
+  promptQuestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  promptQuestion: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontFamily: 'Inter_500Medium',
+  },
+  promptAnswer: {
+    fontSize: 16,
+    fontFamily: 'Inter_500Medium',
+    color: colors.textPrimary,
+    minHeight: 52,
+    textAlignVertical: 'top',
+    padding: 0,
+  },
+  promptFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  charCount: {
+    fontSize: 11,
+    color: colors.textTertiary,
+  },
+  removeLink: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontFamily: 'Inter_500Medium',
+  },
+  addPromptButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+  },
+  addPromptText: {
+    fontSize: 14,
+    fontFamily: 'Inter_600SemiBold',
+    color: colors.primary,
+  },
+
+  // Subject edit
+  subjectInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  addSubjectBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removableChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: borderRadius.full,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  removableChipText: {
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
+    color: colors.primary,
+  },
+
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
 });

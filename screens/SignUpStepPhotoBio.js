@@ -88,7 +88,7 @@ export default function SignUpStepPhotoBio({ navigation }) {
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
 
-        <SignUpProgressBar currentStep={5} />
+        <SignUpProgressBar currentStep={6} />
 
         <View style={styles.header}>
           <View style={styles.iconWrap}>
@@ -225,7 +225,7 @@ const createStyles = (colors) => StyleSheet.create({
     marginTop: 4,
   },
   inputGroup: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   inputLabel: {
     ...typography.label,
@@ -260,7 +260,7 @@ const createStyles = (colors) => StyleSheet.create({
     backgroundColor: colors.primary,
     paddingVertical: 16,
     borderRadius: borderRadius.md,
-    marginTop: spacing.sm,
+    marginTop: spacing.xl,
   },
   continueText: {
     fontSize: 16,

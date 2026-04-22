@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
+import { resolveProfilePhoto } from '../services/photoService';
 import { createLike, checkIfMatched } from '../services/matchService';
 import MatchModal from '../components/MatchModal';
 import { useTheme } from '../contexts/ThemeContext';
@@ -53,7 +54,7 @@ export default function LikesScreen({ navigation }) {
         .select('*')
         .eq('id', user.id)
         .single();
-      setCurrentUserProfile(profile);
+      setCurrentUserProfile(await resolveProfilePhoto(profile));
     }
   };
 
@@ -88,7 +89,14 @@ export default function LikesScreen({ navigation }) {
         like => !matchedIds.has(like.liker_id)
       );
 
-      setLikes(unmatched);
+      const resolved = await Promise.all(
+        unmatched.map(async like => ({
+          ...like,
+          profiles: await resolveProfilePhoto(like.profiles),
+        }))
+      );
+
+      setLikes(resolved);
     } catch (error) {
       showToast({ message: error.message, type: 'error' });
     } finally {

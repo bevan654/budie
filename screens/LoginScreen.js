@@ -17,6 +17,8 @@ import { useToast } from '../contexts/ToastContext';
 import { typography, spacing, borderRadius } from '../constants/theme';
 import { validateEmail, validatePassword } from '../utils/validation';
 import { getErrorMessage } from '../utils/errorMessages';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { uploadPhoto } from '../services/photoService';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -44,7 +46,17 @@ export default function LoginScreen({ navigation }) {
 
     setLoading(true);
     try {
-      await signIn(email, password);
+      const data = await signIn(email, password);
+      const pendingKey = `pendingPhoto:${email.trim().toLowerCase()}`;
+      const pendingUri = await AsyncStorage.getItem(pendingKey);
+      if (pendingUri && data?.user?.id) {
+        try {
+          await uploadPhoto(pendingUri, data.user.id);
+          await AsyncStorage.removeItem(pendingKey);
+        } catch (photoError) {
+          console.warn('Pending photo upload failed:', photoError.message);
+        }
+      }
     } catch (error) {
       showToast({ message: getErrorMessage(error), type: 'error' });
     } finally {

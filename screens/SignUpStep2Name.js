@@ -157,7 +157,7 @@ const createStyles = (colors) => StyleSheet.create({
     marginBottom: spacing.md,
   },
   header: {
-    marginBottom: spacing.xxxl,
+    marginBottom: spacing.xxl,
   },
   iconWrap: {
     width: 52,

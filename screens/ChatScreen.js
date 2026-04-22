@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
+import { resolveProfilePhoto } from '../services/photoService';
 import { typography, spacing, borderRadius } from '../constants/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../contexts/ToastContext';
@@ -81,7 +82,7 @@ export default function ChatScreen({ navigation }) {
 
           return {
             ...match,
-            profile,
+            profile: await resolveProfilePhoto(profile),
             lastMessage: messages?.[0],
           };
         })

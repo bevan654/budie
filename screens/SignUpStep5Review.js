@@ -19,6 +19,7 @@ import { parseDobToISO } from '../utils/dobHelpers';
 import { getErrorMessage } from '../utils/errorMessages';
 import SignUpProgressBar from '../components/SignUpProgressBar';
 import { uploadPhoto } from '../services/photoService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SignUpStep5Review({ navigation }) {
   const { formData, updateField, resetForm } = useSignUp();
@@ -49,6 +50,10 @@ export default function SignUpStep5Review({ navigation }) {
         study_method: formData.studyMethod?.join(', ') || 'Group Study',
         current_mood: formData.currentMood?.join(', ') || 'Focused',
         bio: formData.bio || '',
+        prompts: formData.prompts || [],
+        subjects: formData.subjects || [],
+        interests: formData.interests || [],
+        availability: formData.availability || [],
       });
 
       if (data?.user) {
@@ -68,6 +73,16 @@ export default function SignUpStep5Review({ navigation }) {
           showToast({ message: 'Account created successfully!', type: 'success' });
           navigation.navigate('Login');
         } else {
+          if (formData.photoUri) {
+            try {
+              await AsyncStorage.setItem(
+                `pendingPhoto:${formData.email.toLowerCase()}`,
+                formData.photoUri
+              );
+            } catch (e) {
+              console.warn('Failed to stash pending photo:', e.message);
+            }
+          }
           resetForm();
           Alert.alert(
             'Check your email',
@@ -114,7 +129,7 @@ export default function SignUpStep5Review({ navigation }) {
         <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
       </TouchableOpacity>
 
-      <SignUpProgressBar currentStep={7} />
+      <SignUpProgressBar currentStep={8} />
 
       <View style={styles.header}>
         <View style={styles.iconWrap}>
@@ -146,6 +161,15 @@ export default function SignUpStep5Review({ navigation }) {
         {renderRow('Study Time', formData.studyTime?.join(', ') || '--')}
         {renderRow('Study Method', formData.studyMethod?.join(', ') || '--')}
         {renderRow('Mood', formData.currentMood?.join(', ') || '--')}
+      </View>
+
+      {/* More About You */}
+      <View style={styles.section}>
+        {renderSectionHeader('sparkles-outline', 'More About You', 'SignUpStepDetails')}
+        {renderRow('Prompts', formData.prompts?.length ? `${formData.prompts.length} answered` : 'None')}
+        {renderRow('Subjects', formData.subjects?.join(', ') || 'None')}
+        {renderRow('Interests', formData.interests?.join(', ') || 'None')}
+        {renderRow('Available', formData.availability?.join(', ') || 'None')}
       </View>
 
       {/* Profile */}

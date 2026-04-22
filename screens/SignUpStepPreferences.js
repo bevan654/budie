@@ -50,7 +50,7 @@ export default function SignUpStepPreferences({ navigation }) {
     }
 
     updateFields({ studyTime, studyMethod, currentMood });
-    navigation.navigate('SignUpStepPhotoBio');
+    navigation.navigate('SignUpStepDetails');
   };
 
   return (
@@ -168,7 +168,7 @@ const createStyles = (colors) => StyleSheet.create({
     flex: 1,
   },
   section: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   sectionLabel: {
     ...typography.label,

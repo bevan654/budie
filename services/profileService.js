@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { resolveProfilePhoto, resolveProfilePhotos } from './photoService';
 
 export const fetchProfile = async (userId) => {
   const { data, error } = await supabase
@@ -8,7 +9,7 @@ export const fetchProfile = async (userId) => {
     .single();
 
   if (error) throw error;
-  return data;
+  return await resolveProfilePhoto(data);
 };
 
 export const updateProfile = async (userId, updates) => {
@@ -20,7 +21,7 @@ export const updateProfile = async (userId, updates) => {
     .single();
 
   if (error) throw error;
-  return data;
+  return await resolveProfilePhoto(data);
 };
 
 export const fetchProfiles = async (currentUserId, likedIds = [], filters = {}) => {
@@ -62,5 +63,5 @@ export const fetchProfiles = async (currentUserId, likedIds = [], filters = {}) 
   const { data, error } = await query;
 
   if (error) throw error;
-  return data || [];
+  return await resolveProfilePhotos(data || []);
 };
