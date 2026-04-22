@@ -10,6 +10,8 @@ import {
   Dimensions,
   Alert,
   Keyboard,
+  Switch,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +23,7 @@ import { typography, spacing, borderRadius } from '../constants/theme';
 import { validateAge, validateRequired } from '../utils/validation';
 import { getErrorMessage } from '../utils/errorMessages';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { hapticLight } from '../utils/haptics';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PhotoUploadButton from '../components/PhotoUploadButton';
 import FilterChip from '../components/FilterChip';
@@ -57,9 +60,16 @@ export default function ProfileScreen({ navigation }) {
   const [subjectInput, setSubjectInput] = useState('');
   const [pickerSlot, setPickerSlot] = useState(null);
 
-  const { userId } = useAuth();
+  // Settings state
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(true);
+  const [messageNotifs, setMessageNotifs] = useState(true);
+  const [matchNotifs, setMatchNotifs] = useState(true);
+  const [likeNotifs, setLikeNotifs] = useState(false);
+
+  const { userId, signOut } = useAuth();
   const { profile, loading, updateProfile: updateProfileService, refetch } = useProfile(userId);
-  const { colors, inputStyles } = useTheme();
+  const { colors, inputStyles, isDark, toggleTheme } = useTheme();
   const { showToast } = useToast();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(colors, inputStyles, insets), [colors, inputStyles, insets]);
@@ -151,6 +161,47 @@ export default function ProfileScreen({ navigation }) {
 
   const handlePhotoUpload = () => refetch();
 
+  const handleSignOut = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            setSettingsLoading(true);
+            try {
+              await signOut();
+            } catch (error) {
+              Alert.alert('Error', error.message);
+            } finally {
+              setSettingsLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This action is permanent and cannot be undone. All your data, matches, and messages will be deleted.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert('Account Deletion', 'Please contact support@budie.app to complete account deletion.');
+          },
+        },
+      ]
+    );
+  };
+
   // Prompt helpers (edit mode)
   const addPrompt = (question) => {
     if (formData.prompts.length >= MAX_PROMPTS) return;
@@ -214,6 +265,28 @@ export default function ProfileScreen({ navigation }) {
     </View>
   );
 
+  const SettingRow = ({ icon, iconColor, label, labelColor, value, onPress, rightElement }) => (
+    <TouchableOpacity
+      style={styles.settingOption}
+      onPress={onPress}
+      activeOpacity={onPress ? 0.6 : 1}
+      disabled={!onPress}
+    >
+      <View style={styles.settingOptionLeft}>
+        <View style={[styles.settingIconContainer, { backgroundColor: iconColor + '15' }]}>
+          <Ionicons name={icon} size={18} color={iconColor} />
+        </View>
+        <Text style={[styles.settingOptionText, labelColor && { color: labelColor }]}>{label}</Text>
+      </View>
+      {rightElement || (
+        <View style={styles.settingOptionRight}>
+          {value && <Text style={styles.settingOptionValue}>{value}</Text>}
+          {onPress && <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />}
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+
   const metaLine = [profile?.course, profile?.course_year].filter(Boolean).join('  ·  ');
   const hasVibeChips = profile?.study_time || profile?.study_method || profile?.current_mood;
   const hasPrompts = Array.isArray(profile?.prompts) && profile.prompts.length > 0;
@@ -246,12 +319,6 @@ export default function ProfileScreen({ navigation }) {
           style={styles.heroGradient}
           pointerEvents="none"
         />
-        <TouchableOpacity
-          style={styles.settingsButton}
-          onPress={() => navigation.navigate('Settings')}
-        >
-          <Ionicons name="settings-outline" size={20} color="#fff" />
-        </TouchableOpacity>
         <View style={styles.heroInfo}>
           <Text style={styles.heroName}>
             {profile?.name}{profile?.age ? `, ${profile.age}` : ''}
@@ -287,6 +354,7 @@ export default function ProfileScreen({ navigation }) {
         )}
       </View>
 
+      {/* Profile Content */}
       <View style={styles.body}>
         {editing ? (
           <>
@@ -504,6 +572,223 @@ export default function ProfileScreen({ navigation }) {
         )}
       </View>
 
+      {/* Settings Sections */}
+      <View style={styles.settingsContainer}>
+        <Text style={styles.settingsSectionDivider}>Settings</Text>
+
+        {/* Appearance */}
+        <View style={styles.settingsGroup}>
+          <Text style={styles.settingsGroupTitle}>Appearance</Text>
+          <View style={styles.settingsCard}>
+            <SettingRow
+              icon="moon"
+              iconColor={colors.primary}
+              label="Dark Mode"
+              rightElement={
+                <Switch
+                  value={isDark}
+                  onValueChange={toggleTheme}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor={colors.white}
+                />
+              }
+            />
+          </View>
+        </View>
+
+        {/* Notifications */}
+        <View style={styles.settingsGroup}>
+          <Text style={styles.settingsGroupTitle}>Notifications</Text>
+          <View style={styles.settingsCard}>
+            <SettingRow
+              icon="notifications"
+              iconColor={colors.warning}
+              label="Push Notifications"
+              rightElement={
+                <Switch
+                  value={pushEnabled}
+                  onValueChange={setPushEnabled}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor={colors.white}
+                />
+              }
+            />
+            <SettingRow
+              icon="chatbubble"
+              iconColor={colors.primary}
+              label="Messages"
+              rightElement={
+                <Switch
+                  value={messageNotifs}
+                  onValueChange={setMessageNotifs}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor={colors.white}
+                />
+              }
+            />
+            <SettingRow
+              icon="people"
+              iconColor={colors.success}
+              label="New Matches"
+              rightElement={
+                <Switch
+                  value={matchNotifs}
+                  onValueChange={setMatchNotifs}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor={colors.white}
+                />
+              }
+            />
+            <SettingRow
+              icon="heart"
+              iconColor={colors.error}
+              label="Likes"
+              rightElement={
+                <Switch
+                  value={likeNotifs}
+                  onValueChange={setLikeNotifs}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor={colors.white}
+                />
+              }
+            />
+          </View>
+        </View>
+
+        {/* Discovery */}
+        <View style={styles.settingsGroup}>
+          <Text style={styles.settingsGroupTitle}>Discovery</Text>
+          <View style={styles.settingsCard}>
+            <SettingRow
+              icon="location"
+              iconColor={colors.success}
+              label="Location"
+              value="On Campus"
+              onPress={() => { hapticLight(); showToast({ message: 'Coming soon!', type: 'info' }); }}
+            />
+            <SettingRow
+              icon="school"
+              iconColor={colors.primary}
+              label="University"
+              value="Set Up"
+              onPress={() => { hapticLight(); showToast({ message: 'Coming soon!', type: 'info' }); }}
+            />
+            <SettingRow
+              icon="eye"
+              iconColor={colors.purple}
+              label="Profile Visibility"
+              value="Everyone"
+              onPress={() => { hapticLight(); showToast({ message: 'Coming soon!', type: 'info' }); }}
+            />
+          </View>
+        </View>
+
+        {/* Privacy & Security */}
+        <View style={styles.settingsGroup}>
+          <Text style={styles.settingsGroupTitle}>Privacy & Security</Text>
+          <View style={styles.settingsCard}>
+            <SettingRow
+              icon="lock-closed"
+              iconColor={colors.grey}
+              label="Privacy Settings"
+              onPress={() => { hapticLight(); showToast({ message: 'Coming soon!', type: 'info' }); }}
+            />
+            <SettingRow
+              icon="ban"
+              iconColor={colors.error}
+              label="Blocked Users"
+              onPress={() => { hapticLight(); showToast({ message: 'Coming soon!', type: 'info' }); }}
+            />
+            <SettingRow
+              icon="shield-checkmark"
+              iconColor={colors.success}
+              label="Two-Factor Auth"
+              value="Off"
+              onPress={() => { hapticLight(); showToast({ message: 'Coming soon!', type: 'info' }); }}
+            />
+          </View>
+        </View>
+
+        {/* Help & Support */}
+        <View style={styles.settingsGroup}>
+          <Text style={styles.settingsGroupTitle}>Help & Support</Text>
+          <View style={styles.settingsCard}>
+            <SettingRow
+              icon="help-circle"
+              iconColor={colors.primary}
+              label="Help Center"
+              onPress={() => { hapticLight(); showToast({ message: 'Coming soon!', type: 'info' }); }}
+            />
+            <SettingRow
+              icon="chatbubble-ellipses"
+              iconColor={colors.warning}
+              label="Contact Support"
+              onPress={() => { hapticLight(); Linking.openURL('mailto:support@budie.app'); }}
+            />
+            <SettingRow
+              icon="flag"
+              iconColor={colors.error}
+              label="Report a Problem"
+              onPress={() => { hapticLight(); showToast({ message: 'Coming soon!', type: 'info' }); }}
+            />
+            <SettingRow
+              icon="star"
+              iconColor={colors.warning}
+              label="Rate budie"
+              onPress={() => { hapticLight(); showToast({ message: 'Coming soon!', type: 'info' }); }}
+            />
+          </View>
+        </View>
+
+        {/* Legal */}
+        <View style={styles.settingsGroup}>
+          <Text style={styles.settingsGroupTitle}>Legal</Text>
+          <View style={styles.settingsCard}>
+            <SettingRow
+              icon="document-text"
+              iconColor={colors.grey}
+              label="Terms of Service"
+              onPress={() => { hapticLight(); Linking.openURL('https://budie.app/terms'); }}
+            />
+            <SettingRow
+              icon="shield"
+              iconColor={colors.grey}
+              label="Privacy Policy"
+              onPress={() => { hapticLight(); Linking.openURL('https://budie.app/privacy'); }}
+            />
+            <SettingRow
+              icon="information-circle"
+              iconColor={colors.grey}
+              label="Licenses"
+              onPress={() => { hapticLight(); showToast({ message: 'Coming soon!', type: 'info' }); }}
+            />
+          </View>
+        </View>
+
+        {/* Account */}
+        <View style={styles.settingsGroup}>
+          <Text style={styles.settingsGroupTitle}>Account</Text>
+          <View style={styles.settingsCard}>
+            <SettingRow
+              icon="log-out"
+              iconColor={colors.warning}
+              label="Sign Out"
+              labelColor={colors.warning}
+              onPress={handleSignOut}
+            />
+            <SettingRow
+              icon="trash"
+              iconColor={colors.error}
+              label="Delete Account"
+              labelColor={colors.error}
+              onPress={handleDeleteAccount}
+            />
+          </View>
+        </View>
+
+        <Text style={styles.version}>budie v1.0.0</Text>
+      </View>
+
       <PickerModal
         visible={!!pickerSlot}
         onClose={() => setPickerSlot(null)}
@@ -557,7 +842,7 @@ const createStyles = (colors, inputStyles, insets) => StyleSheet.create({
     position: 'absolute',
     bottom: 26,
     left: 24,
-    right: 80,
+    right: 24,
   },
   heroName: {
     fontSize: 30,
@@ -570,18 +855,6 @@ const createStyles = (colors, inputStyles, insets) => StyleSheet.create({
     color: 'rgba(255,255,255,0.88)',
     fontFamily: 'Inter_500Medium',
     marginTop: 4,
-  },
-  settingsButton: {
-    position: 'absolute',
-    top: insets.top + 6,
-    right: 16,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(0,0,0,0.28)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
   },
 
   // Action row
@@ -829,9 +1102,83 @@ const createStyles = (colors, inputStyles, insets) => StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
     color: colors.primary,
   },
-
   chipContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+  },
+
+  // Settings
+  settingsContainer: {
+    marginTop: spacing.xxl,
+    paddingHorizontal: 24,
+  },
+  settingsSectionDivider: {
+    fontSize: 22,
+    fontFamily: 'Inter_700Bold',
+    color: colors.textPrimary,
+    marginBottom: spacing.xl,
+  },
+  settingsGroup: {
+    marginBottom: spacing.xl,
+  },
+  settingsGroupTitle: {
+    fontSize: 12,
+    fontFamily: 'Inter_500Medium',
+    color: colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.sm,
+    paddingHorizontal: 4,
+  },
+  settingsCard: {
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    overflow: 'hidden',
+    backgroundColor: colors.cardBackground,
+    borderColor: colors.border,
+  },
+  settingOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.md + 2,
+    paddingHorizontal: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  settingOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  settingIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingOptionText: {
+    fontSize: 15,
+    fontFamily: 'Inter_400Regular',
+    color: colors.textPrimary,
+  },
+  settingOptionRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  settingOptionValue: {
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    color: colors.textTertiary,
+  },
+  version: {
+    textAlign: 'center',
+    fontSize: 11,
+    letterSpacing: 0.2,
+    marginTop: spacing.lg,
+    marginBottom: spacing.xl,
+    color: colors.textTertiary,
   },
 });

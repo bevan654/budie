@@ -12,7 +12,6 @@ import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ChatScreen from '../screens/ChatScreen';
 import LikesScreen from '../screens/LikesScreen';
-import SettingsScreen from '../screens/SettingsScreen';
 import ProfileDetailScreen from '../screens/ProfileDetailScreen';
 import ChatDetailScreen from '../screens/ChatDetailScreen';
 
@@ -50,7 +49,6 @@ function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
-      <Stack.Screen name="Settings" component={SettingsScreen} />
     </Stack.Navigator>
   );
 }
