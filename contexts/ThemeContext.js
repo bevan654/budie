@@ -7,12 +7,13 @@ const ThemeContext = createContext();
 const THEME_KEY = '@budie_theme';
 
 export function ThemeProvider({ children }) {
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(true);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(THEME_KEY).then((value) => {
-      if (value === 'dark') setIsDark(true);
+      if (value === 'light') setIsDark(false);
+      else setIsDark(true);
       setLoaded(true);
     });
   }, []);
