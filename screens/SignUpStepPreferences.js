@@ -15,13 +15,11 @@ import SignUpProgressBar from '../components/SignUpProgressBar';
 import FilterChip from '../components/FilterChip';
 
 const STUDY_TIMES = ['Morning', 'Afternoon', 'Evening', 'Night', 'Flexible'];
-const STUDY_METHODS = ['Solo', 'Group', 'Hybrid', 'Library', 'Online'];
 const MOODS = ['Focused', 'Chill', 'Motivated', 'Stressed', 'Social', 'Quiet'];
 
 export default function SignUpStepPreferences({ navigation }) {
   const { formData, updateFields } = useSignUp();
   const [studyTime, setStudyTime] = useState(formData.studyTime || []);
-  const [studyMethod, setStudyMethod] = useState(formData.studyMethod || []);
   const [currentMood, setCurrentMood] = useState(formData.currentMood || []);
   const { colors } = useTheme();
   const { showToast } = useToast();
@@ -40,16 +38,12 @@ export default function SignUpStepPreferences({ navigation }) {
       showToast({ message: 'Please select at least one study time', type: 'error' });
       return;
     }
-    if (studyMethod.length === 0) {
-      showToast({ message: 'Please select at least one study method', type: 'error' });
-      return;
-    }
     if (currentMood.length === 0) {
       showToast({ message: 'Please select at least one mood', type: 'error' });
       return;
     }
 
-    updateFields({ studyTime, studyMethod, currentMood });
+    updateFields({ studyTime, currentMood });
     navigation.navigate('SignUpStepDetails');
   };
 
@@ -83,20 +77,6 @@ export default function SignUpStepPreferences({ navigation }) {
                 label={time}
                 selected={studyTime.includes(time)}
                 onPress={() => toggleSelection(studyTime, setStudyTime, time)}
-              />
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>How do you study?</Text>
-          <View style={styles.chipContainer}>
-            {STUDY_METHODS.map(method => (
-              <FilterChip
-                key={method}
-                label={method}
-                selected={studyMethod.includes(method)}
-                onPress={() => toggleSelection(studyMethod, setStudyMethod, method)}
               />
             ))}
           </View>

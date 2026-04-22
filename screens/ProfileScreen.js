@@ -47,7 +47,6 @@ export default function ProfileScreen({ navigation }) {
     course: '',
     course_year: '',
     study_time: '',
-    study_method: '',
     current_mood: '',
     age: '',
     pronouns: '',
@@ -79,7 +78,6 @@ export default function ProfileScreen({ navigation }) {
     course: p?.course || '',
     course_year: p?.course_year || '',
     study_time: p?.study_time || '',
-    study_method: p?.study_method || '',
     current_mood: p?.current_mood || '',
     age: p?.age?.toString() || '',
     pronouns: p?.pronouns || '',
@@ -119,7 +117,6 @@ export default function ProfileScreen({ navigation }) {
         course: formData.course,
         course_year: formData.course_year,
         study_time: formData.study_time,
-        study_method: formData.study_method,
         current_mood: formData.current_mood,
         age: parseInt(formData.age),
         pronouns: formData.pronouns,
@@ -288,7 +285,7 @@ export default function ProfileScreen({ navigation }) {
   );
 
   const metaLine = [profile?.course, profile?.course_year].filter(Boolean).join('  ·  ');
-  const hasVibeChips = profile?.study_time || profile?.study_method || profile?.current_mood;
+  const hasVibeChips = profile?.study_time || profile?.current_mood;
   const hasPrompts = Array.isArray(profile?.prompts) && profile.prompts.length > 0;
   const hasSubjects = Array.isArray(profile?.subjects) && profile.subjects.length > 0;
   const hasInterests = Array.isArray(profile?.interests) && profile.interests.length > 0;
@@ -364,7 +361,6 @@ export default function ProfileScreen({ navigation }) {
             {renderEditField('Course', 'course')}
             {renderEditField('Year', 'course_year', { placeholder: '2nd Year' })}
             {renderEditField('Study time', 'study_time', { placeholder: 'Mornings, Evenings' })}
-            {renderEditField('Study method', 'study_method', { placeholder: 'Group, Solo, Library' })}
             {renderEditField('Mood', 'current_mood', { placeholder: 'Focused, Chill' })}
             {renderEditField('Bio', 'bio', { multiline: true, numberOfLines: 4, placeholder: 'A few lines about yourself...' })}
 
@@ -532,12 +528,6 @@ export default function ProfileScreen({ navigation }) {
                     <View style={styles.chip}>
                       <Ionicons name="time-outline" size={14} color={colors.primary} />
                       <Text style={styles.chipText}>{profile.study_time}</Text>
-                    </View>
-                  ) : null}
-                  {profile?.study_method ? (
-                    <View style={styles.chip}>
-                      <Ionicons name="people-outline" size={14} color={colors.primary} />
-                      <Text style={styles.chipText}>{profile.study_method}</Text>
                     </View>
                   ) : null}
                   {profile?.current_mood ? (

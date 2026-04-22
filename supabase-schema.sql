@@ -7,7 +7,6 @@ CREATE TABLE profiles (
   course_year TEXT NOT NULL,
   dob DATE,
   study_time TEXT NOT NULL,
-  study_method TEXT NOT NULL,
   current_mood TEXT NOT NULL,
   age INTEGER NOT NULL,
   pronouns TEXT NOT NULL,
@@ -136,7 +135,7 @@ BEGIN
     _age := 20;
   END IF;
 
-  INSERT INTO public.profiles (id, email, name, university, course, course_year, dob, study_time, study_method, current_mood, age, pronouns, photo_url)
+  INSERT INTO public.profiles (id, email, name, university, course, course_year, dob, study_time, current_mood, age, pronouns, photo_url)
   VALUES (
     NEW.id,
     NEW.email,
@@ -150,7 +149,6 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'course_year', 'Year 1'),
     _dob,
     'Afternoons',
-    'Group Study',
     'Focused',
     _age,
     'They/Them',

@@ -104,12 +104,6 @@ export default function ProfileDetailScreen({ route, navigation }) {
                 <Text style={styles.chipText}>{profile.study_time}</Text>
               </View>
             ) : null}
-            {profile.study_method ? (
-              <View style={styles.chip}>
-                <Ionicons name="people-outline" size={14} color={colors.primary} />
-                <Text style={styles.chipText}>{profile.study_method}</Text>
-              </View>
-            ) : null}
             {profile.current_mood ? (
               <View style={styles.chip}>
                 <Ionicons name="happy-outline" size={14} color={colors.primary} />

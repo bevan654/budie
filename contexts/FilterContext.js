@@ -18,7 +18,6 @@ const defaultFilters = {
   courses: [],
   years: [],
   studyTimes: [],
-  studyMethod: '',
   ageRange: [18, 99],
 };
 
@@ -71,7 +70,6 @@ export const FilterProvider = ({ children }) => {
       activeFilters.courses.length > 0 ||
       activeFilters.years.length > 0 ||
       activeFilters.studyTimes.length > 0 ||
-      activeFilters.studyMethod !== '' ||
       activeFilters.ageRange[0] !== 18 ||
       activeFilters.ageRange[1] !== 99
     );

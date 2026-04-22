@@ -43,9 +43,6 @@ export default function SwipeCard({ profile, onPress }) {
           <View style={styles.tag}>
             <Text style={styles.tagText}>{profile.study_time}</Text>
           </View>
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>{profile.study_method}</Text>
-          </View>
           <View style={[styles.tag, styles.moodTag]}>
             <Text style={styles.moodTagText}>{profile.current_mood}</Text>
           </View>
