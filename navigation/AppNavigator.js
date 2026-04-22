@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../contexts/ThemeContext';
+import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications';
 import { getUnreadMatchCount } from '../services/matchService';
 
 import HomeScreen from '../screens/HomeScreen';
@@ -97,6 +98,8 @@ export default function AppNavigator() {
   const [unreadCount, setUnreadCount] = useState(0);
   const { userId } = useAuth();
   const { colors } = useTheme();
+
+  useRealtimeNotifications(userId);
 
   useEffect(() => {
     if (userId) {

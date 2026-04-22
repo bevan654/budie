@@ -56,3 +56,44 @@ export const unsubscribeFromMessages = (channel) => {
     supabase.removeChannel(channel);
   }
 };
+
+export const markMatchAsRead = async (matchId, userId) => {
+  const { error } = await supabase
+    .from('match_reads')
+    .upsert(
+      { user_id: userId, match_id: matchId, last_read_at: new Date().toISOString() },
+      { onConflict: 'user_id,match_id' }
+    );
+  if (error) throw error;
+};
+
+// Returns { [matchId]: unreadCount } — counts messages from others after last_read_at.
+export const fetchMatchUnreadCounts = async (userId, matchIds) => {
+  if (!matchIds.length) return {};
+
+  const { data: reads } = await supabase
+    .from('match_reads')
+    .select('match_id, last_read_at')
+    .eq('user_id', userId)
+    .in('match_id', matchIds);
+
+  const lastRead = Object.fromEntries((reads || []).map(r => [r.match_id, r.last_read_at]));
+
+  const counts = {};
+  await Promise.all(
+    matchIds.map(async (matchId) => {
+      let query = supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('match_id', matchId)
+        .neq('sender_id', userId);
+      if (lastRead[matchId]) {
+        query = query.gt('created_at', lastRead[matchId]);
+      }
+      const { count } = await query;
+      counts[matchId] = count || 0;
+    })
+  );
+
+  return counts;
+};

@@ -24,14 +24,30 @@ export const updateProfile = async (userId, updates) => {
   return await resolveProfilePhoto(data);
 };
 
-export const fetchProfiles = async (currentUserId, likedIds = [], filters = {}) => {
+export const fetchProfiles = async (currentUserId, filters = {}) => {
+  // Always fetch exclusions live from the DB — using cached React state here
+  // causes stale-exclusion bugs after unmatch, undo, etc. Also defends against
+  // orphaned matches (match row without matching like rows).
+  const [likesRes, matchesRes] = await Promise.all([
+    supabase.from('likes').select('liked_id').eq('liker_id', currentUserId),
+    supabase.from('matches').select('user1_id, user2_id')
+      .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`),
+  ]);
+
+  const likedIds = (likesRes.data || []).map(l => l.liked_id);
+  const matchedPartnerIds = (matchesRes.data || []).map(m =>
+    m.user1_id === currentUserId ? m.user2_id : m.user1_id
+  );
+
+  const excludedIds = Array.from(new Set([...likedIds, ...matchedPartnerIds]));
+
   let query = supabase
     .from('profiles')
     .select('*')
     .neq('id', currentUserId);
 
-  if (likedIds.length > 0) {
-    query = query.not('id', 'in', `(${likedIds.join(',')})`);
+  if (excludedIds.length > 0) {
+    query = query.not('id', 'in', `(${excludedIds.join(',')})`);
   }
 
   if (filters.universities?.length > 0) {

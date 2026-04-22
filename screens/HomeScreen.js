@@ -161,7 +161,7 @@ export default function HomeScreen({ navigation }) {
   const [showFilterModal, setShowFilterModal] = useState(false);
 
   const { userId } = useAuth();
-  const { likedIds, createLike } = useLikes(userId);
+  const { createLike } = useLikes(userId);
   const { profile: currentUserProfile } = useProfile(userId);
   const { activeFilters, setFilters, hasActiveFilters } = useFilters();
   const { colors, shadows } = useTheme();
@@ -204,7 +204,7 @@ export default function HomeScreen({ navigation }) {
     setLoading(true);
 
     try {
-      const data = await fetchProfiles(userId, likedIds, activeFilters);
+      const data = await fetchProfiles(userId, activeFilters);
       // Deduplicate by id
       const seen = new Set();
       const unique = (data || []).filter(p => {

@@ -74,7 +74,7 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
       (filters.years?.length || 0) +
       (filters.studyTimes?.length || 0) +
       (filters.studyMethod ? 1 : 0) +
-      (filters.ageRange[0] !== 18 || filters.ageRange[1] !== 25 ? 1 : 0)
+      (filters.ageRange[0] !== 18 || filters.ageRange[1] !== 99 ? 1 : 0)
     );
   }, [filters]);
 
@@ -86,7 +86,7 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
       years: [],
       studyTimes: [],
       studyMethod: '',
-      ageRange: [18, 25],
+      ageRange: [18, 99],
     });
   };
 
@@ -264,7 +264,7 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
             {renderSectionHeader(
               'person-outline',
               'Age Range',
-              filters.ageRange[0] !== 18 || filters.ageRange[1] !== 25 ? 1 : 0,
+              filters.ageRange[0] !== 18 || filters.ageRange[1] !== 99 ? 1 : 0,
             )}
             <View style={styles.ageCard}>
               <View style={styles.ageValueRow}>
@@ -284,7 +284,7 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
                   <Slider
                     style={styles.slider}
                     minimumValue={18}
-                    maximumValue={25}
+                    maximumValue={99}
                     step={1}
                     value={filters.ageRange[0]}
                     onValueChange={value =>
@@ -297,7 +297,7 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
                     maximumTrackTintColor={colors.border}
                     thumbTintColor={colors.primary}
                   />
-                  <Text style={styles.sliderBound}>25</Text>
+                  <Text style={styles.sliderBound}>99</Text>
                 </View>
               </View>
 
@@ -308,7 +308,7 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
                   <Slider
                     style={styles.slider}
                     minimumValue={18}
-                    maximumValue={25}
+                    maximumValue={99}
                     step={1}
                     value={filters.ageRange[1]}
                     onValueChange={value =>
@@ -321,7 +321,7 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
                     maximumTrackTintColor={colors.border}
                     thumbTintColor={colors.primary}
                   />
-                  <Text style={styles.sliderBound}>25</Text>
+                  <Text style={styles.sliderBound}>99</Text>
                 </View>
               </View>
             </View>

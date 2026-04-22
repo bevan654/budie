@@ -7,13 +7,13 @@ import {
   TouchableOpacity,
   Image,
   TextInput,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { resolveProfilePhoto } from '../services/photoService';
+import { fetchMatchUnreadCounts } from '../services/messageService';
 import { typography, spacing, borderRadius } from '../constants/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../contexts/ToastContext';
@@ -63,27 +63,31 @@ export default function ChatScreen({ navigation }) {
 
       if (error) throw error;
 
+      const rows = data || [];
+      const unreadCounts = await fetchMatchUnreadCounts(
+        currentUserId,
+        rows.map(m => m.id)
+      );
+
       const matchesWithProfiles = await Promise.all(
-        (data || []).map(async (match) => {
+        rows.map(async (match) => {
           const otherUserId = match.user1_id === currentUserId ? match.user2_id : match.user1_id;
 
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', otherUserId)
-            .single();
-
-          const { data: messages } = await supabase
-            .from('messages')
-            .select('*')
-            .eq('match_id', match.id)
-            .order('created_at', { ascending: false })
-            .limit(1);
+          const [profileRes, messagesRes] = await Promise.all([
+            supabase.from('profiles').select('*').eq('id', otherUserId).single(),
+            supabase
+              .from('messages')
+              .select('*')
+              .eq('match_id', match.id)
+              .order('created_at', { ascending: false })
+              .limit(1),
+          ]);
 
           return {
             ...match,
-            profile: await resolveProfilePhoto(profile),
-            lastMessage: messages?.[0],
+            profile: await resolveProfilePhoto(profileRes.data),
+            lastMessage: messagesRes.data?.[0],
+            unreadCount: unreadCounts[match.id] || 0,
           };
         })
       );
@@ -115,10 +119,9 @@ export default function ChatScreen({ navigation }) {
     if (!dateString) return '';
     const date = new Date(dateString);
     const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
+    const diffMins = Math.floor((now - date) / 60000);
+    const diffHours = Math.floor((now - date) / 3600000);
+    const diffDays = Math.floor((now - date) / 86400000);
 
     if (diffMins < 1) return 'now';
     if (diffMins < 60) return `${diffMins}m`;
@@ -127,33 +130,55 @@ export default function ChatScreen({ navigation }) {
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
-  const renderMatch = ({ item }) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => navigation.navigate('ChatDetail', { match: item })}
-      activeOpacity={0.7}
-    >
-      <View style={styles.avatarContainer}>
+  const renderMatch = ({ item }) => {
+    const unread = item.unreadCount > 0;
+    const isFromMe = item.lastMessage?.sender_id === currentUserId;
+    const previewText = item.lastMessage
+      ? (isFromMe ? `You: ${item.lastMessage.content}` : item.lastMessage.content)
+      : 'Say hi';
+
+    return (
+      <TouchableOpacity
+        style={styles.row}
+        onPress={() => navigation.navigate('ChatDetail', { match: item })}
+        activeOpacity={0.6}
+      >
         <Image source={{ uri: item.profile?.photo_url }} style={styles.avatar} />
-      </View>
-      <View style={styles.cardContent}>
-        <View style={styles.cardTopRow}>
-          <Text style={styles.cardName}>{item.profile?.name}</Text>
-          {item.lastMessage && (
-            <Text style={styles.timeText}>{formatTime(item.lastMessage.created_at)}</Text>
-          )}
+
+        <View style={styles.content}>
+          <View style={styles.topLine}>
+            <Text style={[styles.name, unread && styles.nameUnread]} numberOfLines={1}>
+              {item.profile?.name}
+            </Text>
+            {item.lastMessage && (
+              <Text style={[styles.time, unread && styles.timeUnread]}>
+                {formatTime(item.lastMessage.created_at)}
+              </Text>
+            )}
+          </View>
+          <View style={styles.bottomLine}>
+            <Text
+              style={[
+                styles.preview,
+                unread && styles.previewUnread,
+                !item.lastMessage && styles.previewEmpty,
+              ]}
+              numberOfLines={1}
+            >
+              {previewText}
+            </Text>
+            {unread && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadBadgeText}>
+                  {item.unreadCount > 99 ? '99+' : item.unreadCount}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
-        {item.lastMessage ? (
-          <Text style={styles.lastMessage} numberOfLines={1}>
-            {item.lastMessage.sender_id === currentUserId ? 'You: ' : ''}{item.lastMessage.content}
-          </Text>
-        ) : (
-          <Text style={styles.noMessages}>Tap to say hello</Text>
-        )}
-      </View>
-      <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -163,18 +188,24 @@ export default function ChatScreen({ navigation }) {
     );
   }
 
+  const totalUnread = matches.reduce((acc, m) => acc + m.unreadCount, 0);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>budies</Text>
-          {matches.length > 0 && (
-            <View style={styles.countBadge}>
-              <Text style={styles.countText}>{matches.length}</Text>
+          {totalUnread > 0 && (
+            <View style={styles.headerBadge}>
+              <Text style={styles.headerBadgeText}>{totalUnread}</Text>
             </View>
           )}
         </View>
-        <Text style={styles.subtitle}>Your study partners</Text>
+        <Text style={styles.subtitle}>
+          {matches.length > 0
+            ? `${matches.length} ${matches.length === 1 ? 'match' : 'matches'}`
+            : 'Your study partners'}
+        </Text>
       </View>
 
       <View style={styles.searchContainer}>
@@ -226,12 +257,6 @@ const createStyles = (colors, shadows, insets) => StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-  },
   header: {
     paddingTop: insets.top + 12,
     paddingHorizontal: spacing.xxl,
@@ -247,17 +272,17 @@ const createStyles = (colors, shadows, insets) => StyleSheet.create({
     ...typography.h1,
     color: colors.textPrimary,
   },
-  countBadge: {
+  headerBadge: {
     backgroundColor: colors.primary,
     borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
     minWidth: 24,
     alignItems: 'center',
   },
-  countText: {
+  headerBadgeText: {
     fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: 'Inter_700Bold',
     color: colors.white,
   },
   subtitle: {
@@ -265,14 +290,16 @@ const createStyles = (colors, shadows, insets) => StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xs,
   },
+
+  // Search
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: spacing.xxl,
     marginTop: spacing.lg,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
     backgroundColor: colors.backgroundSecondary,
-    borderRadius: borderRadius.md,
+    borderRadius: borderRadius.full,
     paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -282,68 +309,100 @@ const createStyles = (colors, shadows, insets) => StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm + 2,
     fontSize: 15,
     color: colors.textPrimary,
   },
   clearButton: {
     padding: spacing.xs,
   },
+
+  // List
   list: {
-    paddingHorizontal: spacing.xl,
     paddingTop: spacing.sm,
     paddingBottom: spacing.xxl,
   },
-  card: {
+
+  // Conversation row (Instagram-style — no card, clean horizontal padding)
+  row: {
     flexDirection: 'row',
-    backgroundColor: colors.cardBackground,
-    padding: spacing.lg,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.sm,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  avatarContainer: {
-    position: 'relative',
+    paddingVertical: 12,
+    paddingHorizontal: spacing.xxl,
+    backgroundColor: colors.background,
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: colors.backgroundSecondary,
   },
-  cardContent: {
+  content: {
     flex: 1,
     marginLeft: spacing.lg,
+    justifyContent: 'center',
   },
-  cardTopRow: {
+  topLine: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 2,
+    marginBottom: 3,
   },
-  cardName: {
+  name: {
+    flex: 1,
     fontSize: 15,
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: 'Inter_500Medium',
     color: colors.textPrimary,
+    marginRight: spacing.sm,
   },
-  timeText: {
-    fontSize: 11,
+  nameUnread: {
+    fontFamily: 'Inter_700Bold',
+  },
+  time: {
+    fontSize: 12,
     color: colors.textTertiary,
     fontFamily: 'Inter_400Regular',
   },
-  lastMessage: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 2,
+  timeUnread: {
+    color: colors.primary,
+    fontFamily: 'Inter_600SemiBold',
   },
-  noMessages: {
+  bottomLine: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  preview: {
+    flex: 1,
     fontSize: 13,
+    color: colors.textTertiary,
+    fontFamily: 'Inter_400Regular',
+    marginRight: spacing.sm,
+  },
+  previewUnread: {
+    color: colors.textPrimary,
+    fontFamily: 'Inter_500Medium',
+  },
+  previewEmpty: {
     color: colors.primary,
     fontFamily: 'Inter_500Medium',
-    marginTop: 2,
   },
+  unreadBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  unreadBadgeText: {
+    fontSize: 11,
+    fontFamily: 'Inter_700Bold',
+    color: colors.white,
+  },
+
+  // Empty state
   emptyContainer: {
     alignItems: 'center',
     paddingTop: 80,

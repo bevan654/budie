@@ -19,7 +19,7 @@ const defaultFilters = {
   years: [],
   studyTimes: [],
   studyMethod: '',
-  ageRange: [18, 25],
+  ageRange: [18, 99],
 };
 
 export const FilterProvider = ({ children }) => {
@@ -34,7 +34,11 @@ export const FilterProvider = ({ children }) => {
     try {
       const stored = await AsyncStorage.getItem(FILTER_STORAGE_KEY);
       if (stored) {
-        setActiveFilters(JSON.parse(stored));
+        const merged = { ...defaultFilters, ...JSON.parse(stored) };
+        if (merged.ageRange?.[0] === 18 && merged.ageRange?.[1] === 25) {
+          merged.ageRange = [18, 99];
+        }
+        setActiveFilters(merged);
       }
     } catch (error) {
       // Silently fail
@@ -69,7 +73,7 @@ export const FilterProvider = ({ children }) => {
       activeFilters.studyTimes.length > 0 ||
       activeFilters.studyMethod !== '' ||
       activeFilters.ageRange[0] !== 18 ||
-      activeFilters.ageRange[1] !== 25
+      activeFilters.ageRange[1] !== 99
     );
   };
 

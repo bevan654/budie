@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../contexts/ToastContext';
-import { fetchMessages, sendMessage as sendMessageService, subscribeToMessages, unsubscribeFromMessages } from '../services/messageService';
+import { fetchMessages, sendMessage as sendMessageService, subscribeToMessages, unsubscribeFromMessages, markMatchAsRead } from '../services/messageService';
 import { unmatch } from '../services/matchService';
 import { typography, spacing, borderRadius } from '../constants/theme';
 import { getErrorMessage } from '../utils/errorMessages';
@@ -56,6 +56,9 @@ export default function ChatDetailScreen({ route, navigation }) {
       setLoading(true);
       const data = await fetchMessages(match.id);
       setMessages(data || []);
+      markMatchAsRead(match.id, userId).catch(e =>
+        console.warn('markMatchAsRead failed:', e.message)
+      );
     } catch (error) {
       showToast({ message: getErrorMessage(error), type: 'error' });
     } finally {
@@ -73,6 +76,11 @@ export default function ChatDetailScreen({ route, navigation }) {
         if (exists) return prev;
         return [...prev, incoming];
       });
+
+      // User is viewing this chat, so mark as read immediately
+      markMatchAsRead(match.id, userId).catch(e =>
+        console.warn('markMatchAsRead (live) failed:', e.message)
+      );
     });
   };
 
@@ -154,7 +162,7 @@ export default function ChatDetailScreen({ route, navigation }) {
               showToast({ message: 'Unmatched successfully', type: 'info' });
               navigation.goBack();
             } catch (error) {
-              showToast({ message: 'Failed to unmatch', type: 'error' });
+              showToast({ message: error.message || 'Failed to unmatch', type: 'error' });
             }
           },
         },

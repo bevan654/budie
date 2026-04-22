@@ -67,12 +67,38 @@ export const checkIfMatched = async (currentUserId, otherUserId) => {
 };
 
 export const unmatch = async (matchId) => {
-  const { error } = await supabase
+  // Identify the two users involved
+  const { data: match, error: fetchError } = await supabase
     .from('matches')
+    .select('user1_id, user2_id')
+    .eq('id', matchId)
+    .single();
+
+  if (fetchError) throw fetchError;
+  if (!match) throw new Error('Match not found');
+
+  // Wipe both mutual likes so the pair becomes mutually visible + re-matchable.
+  // No count assertion here — with orphaned matches the likes may already be gone.
+  const { error: likesError } = await supabase
+    .from('likes')
     .delete()
+    .or(
+      `and(liker_id.eq.${match.user1_id},liked_id.eq.${match.user2_id}),` +
+      `and(liker_id.eq.${match.user2_id},liked_id.eq.${match.user1_id})`
+    );
+
+  if (likesError) throw likesError;
+
+  // Delete the match row itself
+  const { error, count } = await supabase
+    .from('matches')
+    .delete({ count: 'exact' })
     .eq('id', matchId);
 
   if (error) throw error;
+  if (count === 0) {
+    throw new Error('Could not unmatch — you may not have permission. Check DELETE policy on matches.');
+  }
 };
 
 export const getUnreadMatchCount = async (userId) => {

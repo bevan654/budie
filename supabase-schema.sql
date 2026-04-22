@@ -71,8 +71,14 @@ CREATE POLICY "Users can view likes" ON likes
 CREATE POLICY "Users can create likes" ON likes
   FOR INSERT WITH CHECK (auth.uid() = liker_id);
 
+CREATE POLICY "Users can delete likes involving them" ON likes
+  FOR DELETE USING (auth.uid() = liker_id OR auth.uid() = liked_id);
+
 CREATE POLICY "Users can view their matches" ON matches
   FOR SELECT USING (auth.uid() = user1_id OR auth.uid() = user2_id);
+
+CREATE POLICY "Users can delete their matches" ON matches
+  FOR DELETE USING (auth.uid() = user1_id OR auth.uid() = user2_id);
 
 CREATE POLICY "Users can view messages in their matches" ON messages
   FOR SELECT USING (
