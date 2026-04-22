@@ -11,7 +11,6 @@ const INITIAL_STATE = {
   course: '',
   yearOfStudy: '',
   studyTime: [],
-  studyMethod: [],
   currentMood: [],
   prompts: [],
   subjects: [],

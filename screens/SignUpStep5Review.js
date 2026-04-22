@@ -47,7 +47,6 @@ export default function SignUpStep5Review({ navigation }) {
         course: formData.course,
         course_year: formData.yearOfStudy,
         study_time: formData.studyTime?.join(', ') || 'Afternoons',
-        study_method: formData.studyMethod?.join(', ') || 'Group Study',
         current_mood: formData.currentMood?.join(', ') || 'Focused',
         bio: formData.bio || '',
         prompts: formData.prompts || [],
@@ -159,7 +158,6 @@ export default function SignUpStep5Review({ navigation }) {
       <View style={styles.section}>
         {renderSectionHeader('bulb-outline', 'Study Preferences', 'SignUpStepPreferences')}
         {renderRow('Study Time', formData.studyTime?.join(', ') || '--')}
-        {renderRow('Study Method', formData.studyMethod?.join(', ') || '--')}
         {renderRow('Mood', formData.currentMood?.join(', ') || '--')}
       </View>
 

@@ -36,8 +36,6 @@ const YEARS = ['1', '2', '3', '4', 'Postgrad'];
 
 const STUDY_TIMES = ['Morning', 'Afternoon', 'Evening', 'Night', 'Flexible'];
 
-const STUDY_METHODS = ['Solo', 'Group', 'Hybrid'];
-
 export default function FilterModal({ visible, onClose, initialFilters, onApply }) {
   const [filters, setFilters] = useState(initialFilters);
   const [uniSearch, setUniSearch] = useState('');
@@ -73,7 +71,6 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
       (filters.courses?.length || 0) +
       (filters.years?.length || 0) +
       (filters.studyTimes?.length || 0) +
-      (filters.studyMethod ? 1 : 0) +
       (filters.ageRange[0] !== 18 || filters.ageRange[1] !== 99 ? 1 : 0)
     );
   }, [filters]);
@@ -85,7 +82,6 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
       courses: [],
       years: [],
       studyTimes: [],
-      studyMethod: '',
       ageRange: [18, 99],
     });
   };
@@ -234,26 +230,6 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
                   label={time}
                   selected={filters.studyTimes.includes(time)}
                   onPress={() => toggleArrayFilter('studyTimes', time)}
-                />
-              ))}
-            </View>
-          </View>
-
-          {/* Study Method */}
-          <View style={styles.section}>
-            {renderSectionHeader('people-outline', 'Study Method', filters.studyMethod ? 1 : 0)}
-            <View style={styles.chipContainer}>
-              {STUDY_METHODS.map(method => (
-                <FilterChip
-                  key={method}
-                  label={method}
-                  selected={filters.studyMethod === method}
-                  onPress={() =>
-                    setFilters({
-                      ...filters,
-                      studyMethod: filters.studyMethod === method ? '' : method,
-                    })
-                  }
                 />
               ))}
             </View>

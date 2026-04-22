@@ -66,10 +66,6 @@ export const fetchProfiles = async (currentUserId, filters = {}) => {
     query = query.in('study_time', filters.studyTimes);
   }
 
-  if (filters.studyMethod) {
-    query = query.eq('study_method', filters.studyMethod);
-  }
-
   if (filters.ageRange) {
     query = query
       .gte('age', filters.ageRange[0])
