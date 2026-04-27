@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "budie.",
-    "slug": "budie-app",
+    "slug": "budie",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,16 +16,20 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.budie.app"
+      "bundleIdentifier": "com.bevanshajan.budie",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.budie.app",
+      "package": "com.bevanshajan.budie",
       "permissions": [
-        "VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -51,6 +55,12 @@
         }
       ],
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d8936943-cde6-47cb-8659-9ffa9231a3fb"
+      }
+    },
+    "owner": "shajanbevan"
   }
 }
