@@ -335,6 +335,29 @@ const inboxStyles = StyleSheet.create({
     paddingBottom: 0,
     borderBottomWidth: 1,
   },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 36,
+    marginBottom: 6,
+  },
+  brandWrap: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  brand: {
+    fontFamily: 'Inter_800ExtraBold',
+    fontSize: 26,
+    letterSpacing: -1,
+    lineHeight: 28,
+  },
+  brandDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginLeft: 3,
+    marginBottom: 5,
+  },
   row: {
     flexDirection: 'row',
     gap: 22,

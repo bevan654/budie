@@ -193,7 +193,6 @@ export default function ChatScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <AppHeader />
 
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={18} color={colors.textTertiary} style={styles.searchIcon} />
