@@ -28,6 +28,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import PhotoUploadButton from '../components/PhotoUploadButton';
 import FilterChip from '../components/FilterChip';
 import PickerModal from '../components/PickerModal';
+import AppHeader from '../components/AppHeader';
 import {
   PROMPT_QUESTIONS,
   INTEREST_OPTIONS,
@@ -298,12 +299,14 @@ export default function ProfileScreen({ navigation }) {
   );
 
   return (
-    <ScrollView
-      style={styles.container}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={styles.scrollContent}
-    >
+    <View style={styles.outer}>
+      <AppHeader />
+      <ScrollView
+        style={styles.container}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scrollContent}
+      >
       {/* Hero Photo */}
       <View style={styles.heroContainer}>
         <Image
@@ -798,11 +801,16 @@ export default function ProfileScreen({ navigation }) {
           }
         }}
       />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const createStyles = (colors, inputStyles, insets) => StyleSheet.create({
+  outer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background,

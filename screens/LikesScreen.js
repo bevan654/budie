@@ -19,6 +19,7 @@ import { useToast } from '../contexts/ToastContext';
 import { typography, spacing, borderRadius } from '../constants/theme';
 import { hapticSuccess } from '../utils/haptics';
 import SkeletonLoader from '../components/SkeletonLoader';
+import AppHeader from '../components/AppHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function LikesScreen({ navigation }) {
@@ -162,10 +163,7 @@ export default function LikesScreen({ navigation }) {
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>budie?</Text>
-          <Text style={styles.subtitle}>People who want to study with you</Text>
-        </View>
+        <AppHeader />
         <SkeletonLoader.ProfileGrid />
       </View>
     );
@@ -173,15 +171,7 @@ export default function LikesScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>budie?</Text>
-          <View style={styles.countBadge}>
-            <Text style={styles.countText}>{likes.length}</Text>
-          </View>
-        </View>
-        <Text style={styles.subtitle}>People who want to study with you</Text>
-      </View>
+      <AppHeader />
 
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={18} color={colors.textTertiary} style={styles.searchIcon} />

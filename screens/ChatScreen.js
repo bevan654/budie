@@ -18,6 +18,7 @@ import { typography, spacing, borderRadius } from '../constants/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../contexts/ToastContext';
 import SkeletonLoader from '../components/SkeletonLoader';
+import AppHeader from '../components/AppHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ChatScreen({ navigation }) {
@@ -192,21 +193,7 @@ export default function ChatScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>budies</Text>
-          {totalUnread > 0 && (
-            <View style={styles.headerBadge}>
-              <Text style={styles.headerBadgeText}>{totalUnread}</Text>
-            </View>
-          )}
-        </View>
-        <Text style={styles.subtitle}>
-          {matches.length > 0
-            ? `${matches.length} ${matches.length === 1 ? 'match' : 'matches'}`
-            : 'Your study partners'}
-        </Text>
-      </View>
+      <AppHeader />
 
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={18} color={colors.textTertiary} style={styles.searchIcon} />

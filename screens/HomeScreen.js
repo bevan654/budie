@@ -24,6 +24,7 @@ import SkeletonLoader from '../components/SkeletonLoader';
 import EmptyState from '../components/EmptyState';
 import MatchModal from '../components/MatchModal';
 import FilterModal from '../components/FilterModal';
+import AppHeader from '../components/AppHeader';
 import { hapticSuccess, hapticLight, hapticMedium } from '../utils/haptics';
 
 const { width, height } = Dimensions.get('window');
@@ -307,14 +308,28 @@ export default function HomeScreen({ navigation }) {
 
   const currentProfile = profiles[currentIndex];
 
+  const headerRight = (
+    <>
+      <TouchableOpacity
+        style={styles.headerIcon}
+        onPress={() => setShowFilterModal(true)}
+      >
+        <Ionicons name="options" size={22} color={colors.textPrimary} />
+        {hasActiveFilters && <View style={styles.filterDot} />}
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.headerIcon}
+        onPress={() => navigation.getParent()?.navigate('Profile')}
+      >
+        <Ionicons name="settings" size={20} color={colors.textPrimary} />
+      </TouchableOpacity>
+    </>
+  );
+
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.headerIcon} />
-          <Text style={styles.title}>budie</Text>
-          <View style={styles.headerIcon} />
-        </View>
+        <AppHeader right={headerRight} />
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <SkeletonLoader.Card />
         </View>
@@ -324,24 +339,7 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerIcon}
-          onPress={() => setShowFilterModal(true)}
-        >
-          <Ionicons name="options" size={24} color={colors.textPrimary} />
-          {hasActiveFilters && <View style={styles.filterDot} />}
-        </TouchableOpacity>
-
-        <Text style={styles.headerTitle}>budie</Text>
-
-        <TouchableOpacity
-          style={styles.headerIcon}
-          onPress={() => navigation.getParent()?.navigate('Profile')}
-        >
-          <Ionicons name="settings" size={22} color={colors.textPrimary} />
-        </TouchableOpacity>
-      </View>
+      <AppHeader right={headerRight} />
 
       <View style={styles.cardContainer}>
         {currentProfile ? (
