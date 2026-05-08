@@ -186,7 +186,7 @@ function InboxTopTabs() {
   return (
     <InboxTab.Navigator
       tabBar={(props) => <InboxTabBar {...props} unreadCount={unreadCount} />}
-      screenOptions={{ swipeEnabled: false, lazy: false }}
+      screenOptions={{ swipeEnabled: true, lazy: false }}
     >
       <InboxTab.Screen name="Likes" component={LikesStack} />
       <InboxTab.Screen name="Messages" component={ChatStack} />
@@ -430,7 +430,7 @@ export default function AppNavigator() {
       initialRouteName="Home"
       tabBar={(props) => <CustomTabBar {...props} unreadCount={unreadCount} />}
       screenOptions={({ route }) => ({
-        swipeEnabled: isAtTabRoot(route),
+        swipeEnabled: route.name !== 'Inbox' && isAtTabRoot(route),
         lazy: false,
         animationEnabled: true,
       })}
