@@ -98,7 +98,7 @@ function InboxTabBar({ state, navigation, unreadCount }) {
     >
       <View style={inboxStyles.brandRow}>
         <View style={inboxStyles.brandWrap}>
-          <Text style={[inboxStyles.brand, { color: colors.primary }]}>budie</Text>
+          <Text style={[inboxStyles.brand, { color: colors.primary }]}>buddie</Text>
           <View style={[inboxStyles.brandDot, { backgroundColor: colors.primary }]} />
         </View>
       </View>
@@ -429,11 +429,11 @@ export default function AppNavigator() {
       tabBarPosition="bottom"
       initialRouteName="Home"
       tabBar={(props) => <CustomTabBar {...props} unreadCount={unreadCount} />}
-      screenOptions={({ route }) => ({
-        swipeEnabled: route.name !== 'Inbox' && isAtTabRoot(route),
+      screenOptions={{
+        swipeEnabled: false,
         lazy: false,
         animationEnabled: true,
-      })}
+      }}
     >
       <Tab.Screen name="Search" component={SearchStack} />
       <Tab.Screen name="Inbox" component={InboxTopTabs} />

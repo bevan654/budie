@@ -25,6 +25,8 @@ import {
   FOCUS_MODE,
 } from '../../hooks/useFocusModeSettings';
 import FocusModeSheet from './FocusModeSheet';
+import { useAuth } from '../../hooks/useAuth';
+import { logStudySession } from '../../services/studySessionService';
 
 const MODE = { POMODORO: 'pomodoro', STOPWATCH: 'stopwatch' };
 const PHASE = { FOCUS: 'focus', SHORT_BREAK: 'shortBreak', LONG_BREAK: 'longBreak' };
@@ -102,8 +104,9 @@ function phaseDurationSeconds(phase, settings) {
   }
 }
 
-export default function StudyTimer({ onSessionComplete }) {
+export default function StudyTimer({ onSessionComplete, compact = false }) {
   const { colors, isDark } = useTheme();
+  const { userId } = useAuth();
   const { settings, updateSettings } = usePomodoroSettings();
   const { settings: focusSettings, updateSettings: updateFocusSettings } =
     useFocusModeSettings();
@@ -112,6 +115,25 @@ export default function StudyTimer({ onSessionComplete }) {
 
   const [mode, setMode] = useState(MODE.POMODORO);
   const [sessionType, setSessionType] = useState(SESSION.SOLO);
+  const logCompletedSession = useCallback(
+    ({ durationSeconds, mode: sessionMode, completed = true }) => {
+      if (!userId || !durationSeconds || durationSeconds < 30) return;
+      const endedAt = new Date();
+      const startedAt = new Date(endedAt.getTime() - durationSeconds * 1000);
+      logStudySession({
+        user_id: userId,
+        started_at: startedAt.toISOString(),
+        ended_at: endedAt.toISOString(),
+        duration_seconds: Math.round(durationSeconds),
+        mode: sessionMode,
+        session_type: sessionType,
+        focus_mode_enabled: focusSettings?.enabled ?? false,
+        distraction_free: true,
+        completed,
+      }).catch(() => {});
+    },
+    [userId, sessionType, focusSettings]
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [partner, setPartner] = useState(null);
@@ -200,6 +222,10 @@ export default function StudyTimer({ onSessionComplete }) {
         type: 'pomodoro_focus',
         durationSeconds: settings.focusMinutes * 60,
       });
+      logCompletedSession({
+        durationSeconds: settings.focusMinutes * 60,
+        mode: 'pomodoro',
+      });
     } else if (phase === PHASE.LONG_BREAK) {
       nextPhase = PHASE.FOCUS;
       nextCompletedFocus = 0;
@@ -213,7 +239,7 @@ export default function StudyTimer({ onSessionComplete }) {
     setPomoRemaining(nextDuration);
     pomoBaseRemainingRef.current = nextDuration;
     setPomoRunning(false);
-  }, [phase, completedFocusCount, settings, onSessionComplete]);
+  }, [phase, completedFocusCount, settings, onSessionComplete, logCompletedSession]);
 
   // Pomodoro tick
   useEffect(() => {
@@ -312,6 +338,12 @@ export default function StudyTimer({ onSessionComplete }) {
   };
   const resetStopwatch = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (swElapsed >= 30) {
+      logCompletedSession({
+        durationSeconds: swElapsed,
+        mode: 'stopwatch',
+      });
+    }
     setSwRunning(false);
     setSwElapsed(0);
     swBaseElapsedRef.current = 0;
@@ -353,26 +385,32 @@ export default function StudyTimer({ onSessionComplete }) {
       : colors.warningLight;
 
   return (
-    <View style={styles.cardless}>
+    <View style={[styles.cardless, compact && styles.cardlessCompact]}>
       {/* Session type selector + settings gear */}
       <View style={styles.headerRow}>
-        <View style={styles.sessionTypeRow}>
+        <View style={[styles.sessionTypeRow, compact && styles.sessionTypeRowCompact]}>
           {[
             { key: SESSION.SOLO, label: 'Solo' },
-            { key: SESSION.PARTNER, label: 'Partner' },
-            { key: SESSION.GROUP, label: 'Group' },
+            { key: SESSION.PARTNER, label: 'Partner', disabled: true },
+            { key: SESSION.GROUP, label: 'Group', disabled: true },
           ].map((opt) => {
             const active = sessionType === opt.key;
             return (
               <TouchableOpacity
                 key={opt.key}
-                onPress={() => switchSession(opt.key)}
-                style={styles.sessionTypeButton}
+                onPress={() => !opt.disabled && switchSession(opt.key)}
+                disabled={opt.disabled}
+                style={[
+                  styles.sessionTypeButton,
+                  compact && styles.sessionTypeButtonCompact,
+                  opt.disabled && { opacity: 0.35 },
+                ]}
                 activeOpacity={0.7}
               >
                 <Text
                   style={[
                     styles.sessionTypeText,
+                    compact && styles.sessionTypeTextCompact,
                     {
                       color: active ? colors.textPrimary : colors.textTertiary,
                       fontFamily: active ? 'Inter_700Bold' : 'Inter_500Medium',
@@ -402,7 +440,7 @@ export default function StudyTimer({ onSessionComplete }) {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.middle}>
+      <View style={[styles.middle, compact && styles.middleCompact]}>
         {/* Session info (partner / group) */}
         {sessionType === SESSION.PARTNER && (
           partner ? (
@@ -527,21 +565,24 @@ export default function StudyTimer({ onSessionComplete }) {
         )}
 
         {/* Phase pill + session subtitle */}
-        <View style={styles.phaseGroup}>
+        <View style={[styles.phaseGroup, compact && styles.phaseGroupCompact]}>
         {isPomodoro ? (
           <>
-            <View style={[styles.phasePill, { backgroundColor: phaseColorBg }]}>
-              <Text style={[styles.phasePillText, { color: phaseColor }]}>
+            <View style={[styles.phasePill, compact && styles.phasePillCompact, !compact && { backgroundColor: phaseColorBg }]}>
+              <Text style={[styles.phasePillText, compact && styles.phasePillTextCompact, { color: phaseColor }]}>
                 {PHASE_LABEL[phase].toUpperCase()}
+                {compact ? ` · S${sessionOf}` : ''}
               </Text>
             </View>
-            <Text style={[styles.sessionText, { color: colors.textTertiary }]}>
-              Session {sessionOf}
-            </Text>
+            {!compact && (
+              <Text style={[styles.sessionText, { color: colors.textTertiary }]}>
+                Session {sessionOf}
+              </Text>
+            )}
           </>
         ) : (
-          <View style={[styles.phasePill, { backgroundColor: colors.primaryLight }]}>
-            <Text style={[styles.phasePillText, { color: colors.primary }]}>
+          <View style={[styles.phasePill, compact && styles.phasePillCompact, !compact && { backgroundColor: colors.primaryLight }]}>
+            <Text style={[styles.phasePillText, compact && styles.phasePillTextCompact, { color: colors.primary }]}>
               {(swRunning ? 'Running' : swElapsed > 0 ? 'Paused' : 'Ready').toUpperCase()}
             </Text>
           </View>
@@ -549,13 +590,14 @@ export default function StudyTimer({ onSessionComplete }) {
       </View>
 
       {/* Time display */}
-      <Text style={[styles.timeText, { color: colors.textPrimary }]}>{displayText}</Text>
+      <Text style={[styles.timeText, compact && styles.timeTextCompact, { color: colors.textPrimary }]}>{displayText}</Text>
 
         {/* Progress bar (pomodoro only) */}
         {isPomodoro && (
           <View
             style={[
               styles.progressTrack,
+              compact && styles.progressTrackCompact,
               { backgroundColor: colors.backgroundSecondary },
             ]}
           >
@@ -573,13 +615,13 @@ export default function StudyTimer({ onSessionComplete }) {
       </View>{/* /middle */}
 
       {/* Controls */}
-      <View style={styles.controls}>
+      <View style={[styles.controls, compact && styles.controlsCompact]}>
         <TouchableOpacity
           onPress={isPomodoro ? resetPomodoro : resetStopwatch}
-          style={[styles.secondaryButton, { borderColor: colors.border }]}
+          style={[styles.secondaryButton, compact && styles.secondaryButtonCompact, { borderColor: colors.border }]}
           activeOpacity={0.7}
         >
-          <Ionicons name="refresh" size={20} color={colors.textSecondary} />
+          <Ionicons name="refresh" size={compact ? 16 : 20} color={colors.textSecondary} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -592,18 +634,18 @@ export default function StudyTimer({ onSessionComplete }) {
               ? handlePomodoroPlay
               : startStopwatch
           }
-          style={[styles.primaryButton, { backgroundColor: colors.primary }]}
+          style={[styles.primaryButton, compact && styles.primaryButtonCompact, { backgroundColor: colors.primary }]}
           activeOpacity={0.85}
         >
           <Ionicons
             name={isRunning ? 'pause' : 'play'}
-            size={26}
+            size={compact ? 22 : 26}
             color="#FFFFFF"
             style={{ marginLeft: isRunning ? 0 : 3 }}
           />
         </TouchableOpacity>
 
-        <View style={styles.secondaryPlaceholder} />
+        <View style={[styles.secondaryPlaceholder, compact && styles.secondaryButtonCompact]} />
       </View>
 
       <InvitePartnerSheet
@@ -1481,10 +1523,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 8,
   },
+  cardlessCompact: {
+    flex: 0,
+    paddingTop: 0,
+    paddingBottom: 12,
+  },
   middle: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'stretch',
+  },
+  middleCompact: {
+    flex: 0,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    marginTop: 22,
   },
   headerRow: {
     flexDirection: 'row',
@@ -1495,14 +1548,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 22,
   },
+  sessionTypeRowCompact: {
+    gap: 16,
+  },
   sessionTypeButton: {
     paddingVertical: 8,
     alignItems: 'center',
     position: 'relative',
   },
+  sessionTypeButtonCompact: {
+    paddingVertical: 4,
+  },
   sessionTypeText: {
     fontSize: 14,
     letterSpacing: -0.2,
+  },
+  sessionTypeTextCompact: {
+    fontSize: 12,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
   sessionTypeUnderline: {
     position: 'absolute',
@@ -1837,15 +1901,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  phaseGroupCompact: {
+    alignItems: 'center',
+    gap: 4,
+  },
   phasePill: {
     paddingHorizontal: 14,
     paddingVertical: 5,
     borderRadius: 999,
   },
+  phasePillCompact: {
+    backgroundColor: 'transparent',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+  },
   phasePillText: {
     fontFamily: 'Inter_700Bold',
     fontSize: 11,
     letterSpacing: 1.6,
+  },
+  phasePillTextCompact: {
+    fontSize: 10,
+    letterSpacing: 2.4,
   },
   sessionText: {
     fontFamily: 'Inter_500Medium',
@@ -1860,11 +1937,24 @@ const styles = StyleSheet.create({
     marginVertical: 20,
     fontVariant: ['tabular-nums'],
   },
+  timeTextCompact: {
+    fontSize: 80,
+    letterSpacing: -3,
+    marginTop: 12,
+    marginBottom: 18,
+    textAlign: 'center',
+  },
   progressTrack: {
     height: 4,
     borderRadius: 2,
     overflow: 'hidden',
     marginHorizontal: 24,
+  },
+  progressTrackCompact: {
+    height: 3,
+    marginHorizontal: 12,
+    borderRadius: 1.5,
+    alignSelf: 'stretch',
   },
   progressFill: {
     height: '100%',
@@ -1876,6 +1966,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 8,
     marginTop: 4,
+  },
+  controlsCompact: {
+    paddingHorizontal: 8,
+    marginTop: 26,
+    justifyContent: 'space-between',
   },
   primaryButton: {
     width: 72,
@@ -1889,6 +1984,15 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 6,
   },
+  primaryButtonCompact: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
   secondaryButton: {
     width: 48,
     height: 48,
@@ -1896,6 +2000,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  secondaryButtonCompact: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   secondaryPlaceholder: {
     width: 48,

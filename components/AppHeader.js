@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { TIERS, getTier, MAX_FREEZES } from '../utils/streakTiers';
+import { useAuth } from '../hooks/useAuth';
+import { fetchUserStreak, fetchFreezesUsed } from '../services/streakService';
+import { fetchUserWeeklyTotal } from '../services/studySessionService';
 
-// Placeholder streak data — replace with real hook later
-const PLACEHOLDER_PERSONAL = { days: 7, avgHours: 1.5, freezesUsed: 0 };
-const PLACEHOLDER_BUDDY = { days: 4, avgHours: 2.5, freezesUsed: 1 };
+const DEFAULT_STREAK = { days: 0, avgHours: 0, freezesUsed: 0 };
 
 function StreakChip({ icon, days, avgHours, freezesUsed, onPress }) {
   const tier = getTier(avgHours) || TIERS.COLD;
@@ -143,7 +144,34 @@ function StreakDetail({ title, subtitle, icon, days, avgHours, freezesUsed }) {
 export default function AppHeader({ right }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { userId } = useAuth();
   const [detailOpen, setDetailOpen] = useState(false);
+  const [personal, setPersonal] = useState(DEFAULT_STREAK);
+  const [buddy, setBuddy] = useState(DEFAULT_STREAK);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    Promise.all([
+      fetchUserStreak(userId),
+      fetchFreezesUsed(userId, { windowDays: 30 }),
+      fetchUserWeeklyTotal(userId),
+    ])
+      .then(([streak, freezesUsed, weeklySec]) => {
+        if (cancelled) return;
+        setPersonal({
+          days: streak.current,
+          avgHours: weeklySec / 3600 / 7,
+          freezesUsed,
+        });
+      })
+      .catch((err) => {
+        console.warn('[AppHeader] streak fetch failed:', err?.message || err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const open = () => setDetailOpen(true);
   const close = () => setDetailOpen(false);
@@ -162,7 +190,7 @@ export default function AppHeader({ right }) {
       >
         <View style={styles.row}>
           <View style={styles.brandWrap}>
-            <Text style={[styles.brand, { color: colors.primary }]}>budie</Text>
+            <Text style={[styles.brand, { color: colors.primary }]}>buddie</Text>
             <View style={[styles.brandDot, { backgroundColor: colors.primary }]} />
           </View>
 
@@ -171,16 +199,16 @@ export default function AppHeader({ right }) {
             <View style={styles.streaksRow}>
               <StreakChip
                 icon="flame"
-                days={PLACEHOLDER_PERSONAL.days}
-                avgHours={PLACEHOLDER_PERSONAL.avgHours}
-                freezesUsed={PLACEHOLDER_PERSONAL.freezesUsed}
+                days={personal.days}
+                avgHours={personal.avgHours}
+                freezesUsed={personal.freezesUsed}
                 onPress={open}
               />
               <StreakChip
                 icon="people"
-                days={PLACEHOLDER_BUDDY.days}
-                avgHours={PLACEHOLDER_BUDDY.avgHours}
-                freezesUsed={PLACEHOLDER_BUDDY.freezesUsed}
+                days={buddy.days}
+                avgHours={buddy.avgHours}
+                freezesUsed={buddy.freezesUsed}
                 onPress={open}
               />
             </View>
@@ -216,17 +244,17 @@ export default function AppHeader({ right }) {
                 title="Personal"
                 subtitle="Your solo + partner study"
                 icon="flame"
-                days={PLACEHOLDER_PERSONAL.days}
-                avgHours={PLACEHOLDER_PERSONAL.avgHours}
-                freezesUsed={PLACEHOLDER_PERSONAL.freezesUsed}
+                days={personal.days}
+                avgHours={personal.avgHours}
+                freezesUsed={personal.freezesUsed}
               />
               <StreakDetail
                 title="Buddy"
                 subtitle="Days you studied with mates"
                 icon="people"
-                days={PLACEHOLDER_BUDDY.days}
-                avgHours={PLACEHOLDER_BUDDY.avgHours}
-                freezesUsed={PLACEHOLDER_BUDDY.freezesUsed}
+                days={buddy.days}
+                avgHours={buddy.avgHours}
+                freezesUsed={buddy.freezesUsed}
               />
             </View>
 

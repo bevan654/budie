@@ -36,6 +36,12 @@
       "favicon": "./assets/favicon.png"
     },
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d8936943-cde6-47cb-8659-9ffa9231a3fb"
+    },
     "plugins": [
       [
         "expo-image-picker",

@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from './useAuth';
+import {
+  fetchFocusModeSettings,
+  upsertFocusModeSettings,
+} from '../services/settingsService';
 
 const STORAGE_KEY = '@budie_focus_mode';
 
@@ -25,6 +30,7 @@ export const DEFAULT_FOCUS_SETTINGS = {
 };
 
 export function useFocusModeSettings() {
+  const { userId } = useAuth();
   const [settings, setSettings] = useState(DEFAULT_FOCUS_SETTINGS);
   const [loaded, setLoaded] = useState(false);
 
@@ -41,12 +47,35 @@ export function useFocusModeSettings() {
       .finally(() => setLoaded(true));
   }, []);
 
-  const updateSettings = useCallback(async (next) => {
-    setSettings(next);
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {}
-  }, []);
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    fetchFocusModeSettings(userId)
+      .then((remote) => {
+        if (cancelled || !remote) return;
+        setSettings({ ...DEFAULT_FOCUS_SETTINGS, ...remote });
+        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(remote)).catch(() => {});
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  const updateSettings = useCallback(
+    async (next) => {
+      setSettings(next);
+      try {
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch {}
+      if (userId) {
+        try {
+          await upsertFocusModeSettings(userId, next);
+        } catch {}
+      }
+    },
+    [userId]
+  );
 
   return { settings, updateSettings, loaded };
 }

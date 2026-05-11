@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import AppHeader from '../components/AppHeader';
 import StatsGrid from '../components/study/StatsGrid';
+import Leaderboard from '../components/study/Leaderboard';
 
 export default function StudyScreen() {
   const { colors } = useTheme();
@@ -21,10 +22,22 @@ export default function StudyScreen() {
               Stats
             </Text>
             <Text style={[styles.sectionHint, { color: colors.textTertiary }]}>
-              Coming soon
+              Last 7 days
             </Text>
           </View>
           <StatsGrid />
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+              Leaderboard
+            </Text>
+            <Text style={[styles.sectionHint, { color: colors.textTertiary }]}>
+              This week
+            </Text>
+          </View>
+          <Leaderboard />
         </View>
       </ScrollView>
     </View>

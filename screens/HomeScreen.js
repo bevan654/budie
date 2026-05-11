@@ -66,11 +66,11 @@ const createStyles = (colors, shadows, insets) => StyleSheet.create({
   },
   cardContainer: {
     flex: 1,
-    paddingHorizontal: spacing.sm,
-    paddingBottom: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    paddingBottom: spacing.xs,
   },
   card: {
-    width: width - (spacing.sm * 2),
+    width: width - (spacing.xs * 2),
     height: '100%',
   },
   likeLabel: {
@@ -359,6 +359,8 @@ export default function HomeScreen({ navigation }) {
               <SwipeCard
                 profile={currentProfile}
                 onPress={() => navigation.navigate('ProfileDetail', { profile: currentProfile })}
+                onLike={handleLike}
+                onDislike={handleDislike}
               />
               <Animated.View style={[styles.likeLabel, { opacity: likeOpacity }]}>
                 <Text style={styles.likeLabelText}>LIKE</Text>
@@ -366,18 +368,6 @@ export default function HomeScreen({ navigation }) {
               <Animated.View style={[styles.dislikeLabel, { opacity: dislikeOpacity }]}>
                 <Text style={styles.dislikeLabelText}>NOPE</Text>
               </Animated.View>
-              <View style={styles.actions}>
-                <TouchableOpacity style={styles.dislikeButton} onPress={handleDislike} activeOpacity={0.8}>
-                  <View style={styles.dislikeInner}>
-                    <Ionicons name="close" size={34} color="#fff" />
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.likeButton} onPress={handleLike} activeOpacity={0.8}>
-                  <View style={styles.likeInner}>
-                    <Ionicons name="checkmark" size={34} color="#fff" />
-                  </View>
-                </TouchableOpacity>
-              </View>
             </Animated.View>
         ) : (
           <EmptyState

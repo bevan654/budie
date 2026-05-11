@@ -1,25 +1,30 @@
-import React from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../hooks/useAuth';
+import { fetchStudyStats } from '../../services/statsService';
 
-const PLACEHOLDER = {
-  currentStreak: 7,
-  longestStreak: 14,
-  consistency: [true, true, true, true, true, false, true], // M T W T F S S
-  dailyHoursLast7: [1.5, 2.0, 1.0, 3.5, 2.5, 1.8, 3.2],
-  dailyAverage: '2h 15m',
-  weeklyTotal: '15h 45m',
-  weeklyTotalDelta: '+ 1h 20m vs last week',
-  solo: 18,
-  buddy: 6,
-  silent: 21,
-  nonSilent: 3,
-  distractionFree: 16,
-  totalSessions: 24,
+const DEFAULTS = {
+  currentStreak: 0,
+  longestStreak: 0,
+  consistency: [false, false, false, false, false, false, false],
+  dailyHoursLast7: [0, 0, 0, 0, 0, 0, 0],
+  dailyAverage: '0m',
+  weeklyTotal: '0m',
+  weeklyTotalDelta: '+ 0m vs last week',
+  solo: 0,
+  buddy: 0,
+  silent: 0,
+  nonSilent: 0,
+  distractionFree: 0,
+  totalSessions: 0,
 };
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+const StatsContext = createContext(DEFAULTS);
+const useStats = () => useContext(StatsContext);
 
 function SectionTitle({ children }) {
   const { colors } = useTheme();
@@ -32,6 +37,7 @@ function SectionTitle({ children }) {
 
 function StreakHero() {
   const { colors } = useTheme();
+  const stats = useStats();
   return (
     <View style={styles.heroRow}>
       <View style={styles.heroPrimary}>
@@ -41,7 +47,7 @@ function StreakHero() {
         <View>
           <View style={styles.heroNumberRow}>
             <Text style={[styles.heroNumber, { color: colors.textPrimary }]}>
-              {PLACEHOLDER.currentStreak}
+              {stats.currentStreak}
             </Text>
             <Text style={[styles.heroUnit, { color: colors.textSecondary }]}>days</Text>
           </View>
@@ -54,7 +60,7 @@ function StreakHero() {
       <View style={styles.heroSecondary}>
         <Ionicons name="trophy" size={16} color={colors.success} />
         <Text style={[styles.heroSecondaryNumber, { color: colors.textPrimary }]}>
-          {PLACEHOLDER.longestStreak}
+          {stats.longestStreak}
         </Text>
         <Text style={[styles.heroSecondaryLabel, { color: colors.textTertiary }]}>
           longest
@@ -66,7 +72,8 @@ function StreakHero() {
 
 function ConsistencyRow() {
   const { colors } = useTheme();
-  const studied = PLACEHOLDER.consistency.filter(Boolean).length;
+  const stats = useStats();
+  const studied = stats.consistency.filter(Boolean).length;
   const pct = Math.round((studied / 7) * 100);
   return (
     <View style={styles.consistencyBlock}>
@@ -79,7 +86,7 @@ function ConsistencyRow() {
         </Text>
       </View>
       <View style={styles.dotsRow}>
-        {PLACEHOLDER.consistency.map((on, i) => (
+        {stats.consistency.map((on, i) => (
           <View key={i} style={styles.dotCol}>
             <View
               style={[
@@ -110,7 +117,8 @@ function ConsistencyRow() {
 
 function DailyChart() {
   const { colors } = useTheme();
-  const data = PLACEHOLDER.dailyHoursLast7;
+  const stats = useStats();
+  const data = stats.dailyHoursLast7;
   const max = Math.max(...data, 1);
   const avg = data.reduce((a, b) => a + b, 0) / data.length;
   const avgPct = avg / max;
@@ -124,7 +132,7 @@ function DailyChart() {
           Daily average
         </Text>
         <Text style={[styles.chartValue, { color: colors.primary }]}>
-          {PLACEHOLDER.dailyAverage}
+          {stats.dailyAverage}
         </Text>
       </View>
 
@@ -186,16 +194,17 @@ function DailyChart() {
 
 function WeeklyTotalHero() {
   const { colors } = useTheme();
+  const stats = useStats();
   return (
     <View style={styles.weeklyHero}>
       <Text style={[styles.weeklyLabel, { color: colors.textTertiary }]}>
         WEEKLY TOTAL
       </Text>
       <Text style={[styles.weeklyValue, { color: colors.textPrimary }]}>
-        {PLACEHOLDER.weeklyTotal}
+        {stats.weeklyTotal}
       </Text>
       <Text style={[styles.weeklyDelta, { color: colors.success }]}>
-        ↑ {PLACEHOLDER.weeklyTotalDelta}
+        ↑ {stats.weeklyTotalDelta}
       </Text>
     </View>
   );
@@ -259,8 +268,9 @@ function RatioBar({ title, leftLabel, leftValue, leftColor, rightLabel, rightVal
 
 function DistractionFreeBlock() {
   const { colors, isDark } = useTheme();
-  const total = PLACEHOLDER.totalSessions;
-  const free = PLACEHOLDER.distractionFree;
+  const stats = useStats();
+  const total = stats.totalSessions;
+  const free = stats.distractionFree;
   const pct = total > 0 ? (free / total) * 100 : 0;
   return (
     <View
@@ -305,7 +315,26 @@ function DistractionFreeBlock() {
 
 export default function StatsGrid() {
   const { colors } = useTheme();
+  const { userId } = useAuth();
+  const [stats, setStats] = useState(DEFAULTS);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    fetchStudyStats(userId)
+      .then((data) => {
+        if (!cancelled && data) setStats(data);
+      })
+      .catch((err) => {
+        console.warn('[StatsGrid] fetchStudyStats failed:', err?.message || err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
   return (
+    <StatsContext.Provider value={stats}>
     <View style={styles.root}>
       <View style={styles.section}>
         <SectionTitle>STREAKS</SectionTitle>
@@ -324,24 +353,25 @@ export default function StatsGrid() {
         <RatioBar
           title="Solo vs Buddy"
           leftLabel="Solo"
-          leftValue={PLACEHOLDER.solo}
+          leftValue={stats.solo}
           leftColor={colors.primary}
           rightLabel="Buddy"
-          rightValue={PLACEHOLDER.buddy}
+          rightValue={stats.buddy}
           rightColor={colors.success}
         />
         <RatioBar
           title="Silent vs Non-silent"
           leftLabel="Silent"
-          leftValue={PLACEHOLDER.silent}
+          leftValue={stats.silent}
           leftColor={colors.purple}
           rightLabel="Non-silent"
-          rightValue={PLACEHOLDER.nonSilent}
+          rightValue={stats.nonSilent}
           rightColor={colors.warning}
         />
         <DistractionFreeBlock />
       </View>
     </View>
+    </StatsContext.Provider>
   );
 }
 
