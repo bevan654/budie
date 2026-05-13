@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 import { spacing, typography } from '../constants/theme';
 
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 6;
 
 export default function SignUpProgressBar({ currentStep }) {
   const { colors } = useTheme();

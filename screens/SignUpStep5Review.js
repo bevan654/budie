@@ -138,7 +138,7 @@ export default function SignUpStep5Review({ navigation }) {
         <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
       </TouchableOpacity>
 
-      <SignUpProgressBar currentStep={8} />
+      <SignUpProgressBar currentStep={6} />
 
       <View style={styles.header}>
         <View style={styles.iconWrap}>
@@ -162,13 +162,6 @@ export default function SignUpStep5Review({ navigation }) {
         {renderRow('University', formData.university)}
         {renderRow('Course', formData.course)}
         {renderRow('Year', formData.yearOfStudy)}
-      </View>
-
-      {/* Study Preferences */}
-      <View style={styles.section}>
-        {renderSectionHeader('bulb-outline', 'Study Preferences', 'SignUpStepPreferences')}
-        {renderRow('Study Time', formData.studyTime?.join(', ') || '--')}
-        {renderRow('Mood', formData.currentMood?.join(', ') || '--')}
       </View>
 
       {/* Profile */}

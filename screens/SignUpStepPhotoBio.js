@@ -88,7 +88,7 @@ export default function SignUpStepPhotoBio({ navigation }) {
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
 
-        <SignUpProgressBar currentStep={6} />
+        <SignUpProgressBar currentStep={4} />
 
         <View style={styles.header}>
           <View style={styles.iconWrap}>

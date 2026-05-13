@@ -13,6 +13,7 @@ export const DEFAULT_POMODORO_SETTINGS = {
   shortBreakMinutes: 5,
   longBreakMinutes: 15,
   cyclesBeforeLongBreak: 4,
+  noBreaks: false,
 };
 
 export const POMODORO_LIMITS = {

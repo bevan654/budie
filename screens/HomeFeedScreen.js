@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../contexts/ThemeContext';
@@ -9,6 +9,9 @@ import {
   fetchLeaderboard,
   formatHours,
 } from '../services/leaderboardService';
+import { fetchUserXp } from '../services/xpService';
+import { useToast } from '../contexts/ToastContext';
+import { getRankFromXp, formatXp } from '../constants/rankTiers';
 
 function LeaderboardRow({ rank, name, value, isMe }) {
   const { colors } = useTheme();
@@ -51,27 +54,61 @@ function toDisplayName(raw, isMe) {
 export default function HomeFeedScreen({ navigation }) {
   const { colors, isDark } = useTheme();
   const { userId } = useAuth();
+  const { showToast } = useToast();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const xpBeforeRef = useRef(0);
+
+  const loadLeaderboard = useCallback(
+    (cancelledFlag) => {
+      fetchLeaderboard({ windowDays: 7, limit: 3 })
+        .then((data) => {
+          if (cancelledFlag?.current) return;
+          setRows(data || []);
+        })
+        .catch((err) => {
+          console.warn('[HomeFeed leaderboard] fetch failed:', err?.message || err);
+          if (!cancelledFlag?.current) setRows([]);
+        })
+        .finally(() => {
+          if (!cancelledFlag?.current) setLoading(false);
+        });
+    },
+    []
+  );
 
   useEffect(() => {
-    let cancelled = false;
-    fetchLeaderboard({ windowDays: 7, limit: 3 })
-      .then((data) => {
-        if (cancelled) return;
-        setRows(data || []);
-      })
-      .catch((err) => {
-        console.warn('[HomeFeed leaderboard] fetch failed:', err?.message || err);
-        if (!cancelled) setRows([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+    const cancelledFlag = { current: false };
+    loadLeaderboard(cancelledFlag);
+    if (userId) {
+      fetchUserXp(userId).then((xp) => {
+        if (!cancelledFlag.current) xpBeforeRef.current = xp;
       });
+    }
     return () => {
-      cancelled = true;
+      cancelledFlag.current = true;
     };
-  }, [userId]);
+  }, [userId, loadLeaderboard]);
+
+  const handleSessionComplete = useCallback(
+    async () => {
+      if (!userId) return;
+      try {
+        const nextXp = await fetchUserXp(userId);
+        const delta = Math.max(0, nextXp - xpBeforeRef.current);
+        xpBeforeRef.current = nextXp;
+        const rank = getRankFromXp(nextXp);
+        showToast({
+          message: `+${delta} XP · ${rank.emoji} ${rank.name} · ${formatXp(nextXp)} XP total`,
+          type: 'success',
+        });
+      } catch (e) {
+        // non-fatal; the session itself is already saved
+      }
+      loadLeaderboard({ current: false });
+    },
+    [userId, loadLeaderboard, showToast]
+  );
 
   const goToTab = (tab, params) =>
     navigation?.getParent()?.navigate(tab, params);
@@ -107,7 +144,7 @@ export default function HomeFeedScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.timerHost}>
-          <StudyTimer compact />
+          <StudyTimer compact onSessionComplete={handleSessionComplete} />
         </View>
 
         <View style={styles.sectionLead}>

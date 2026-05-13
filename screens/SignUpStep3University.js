@@ -53,7 +53,7 @@ export default function SignUpStep3University({ navigation }) {
       course: course.trim(),
       yearOfStudy,
     });
-    navigation.navigate('SignUpStepPreferences');
+    navigation.navigate('SignUpStepPhotoBio');
   };
 
   return (

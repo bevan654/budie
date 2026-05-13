@@ -3,8 +3,8 @@ export const TIERS = {
     key: 'cold',
     name: 'Cold',
     minHours: 10 / 60, // 10 min
-    color: '#34D399', // green-blue
-    glow: '#34D399',
+    color: '#2DD4BF', // green-blue (teal)
+    glow: '#2DD4BF',
     description: '10 min average',
   },
   COOL: {

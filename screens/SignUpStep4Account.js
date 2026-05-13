@@ -71,7 +71,7 @@ export default function SignUpStep4Account({ navigation }) {
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
 
-        <SignUpProgressBar currentStep={7} />
+        <SignUpProgressBar currentStep={5} />
 
         <View style={styles.header}>
           <View style={styles.iconWrap}>

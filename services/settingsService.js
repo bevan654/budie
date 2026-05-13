@@ -13,6 +13,7 @@ export async function fetchPomodoroSettings(userId) {
     shortBreakMinutes: data.short_break_minutes,
     longBreakMinutes: data.long_break_minutes,
     cyclesBeforeLongBreak: data.cycles_before_long_break,
+    noBreaks: data.no_breaks ?? false,
   };
 }
 
@@ -26,6 +27,7 @@ export async function upsertPomodoroSettings(userId, settings) {
         short_break_minutes: settings.shortBreakMinutes,
         long_break_minutes: settings.longBreakMinutes,
         cycles_before_long_break: settings.cyclesBeforeLongBreak,
+        no_breaks: !!settings.noBreaks,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'user_id' }

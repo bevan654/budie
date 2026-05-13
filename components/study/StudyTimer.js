@@ -11,6 +11,7 @@ import {
   TextInput,
   ScrollView,
   Dimensions,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -25,8 +26,20 @@ import {
   FOCUS_MODE,
 } from '../../hooks/useFocusModeSettings';
 import FocusModeSheet from './FocusModeSheet';
+import SessionCompleteModal from './SessionCompleteModal';
 import { useAuth } from '../../hooks/useAuth';
 import { logStudySession } from '../../services/studySessionService';
+import { useToast } from '../../contexts/ToastContext';
+
+// Lightweight UUID v4 — avoids pulling in `uuid` + its random-bytes polyfill.
+// Postgres `uuid` only cares about the canonical 8-4-4-4-12 hex shape.
+function uuidv4() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 const MODE = { POMODORO: 'pomodoro', STOPWATCH: 'stopwatch' };
 const PHASE = { FOCUS: 'focus', SHORT_BREAK: 'shortBreak', LONG_BREAK: 'longBreak' };
@@ -107,32 +120,41 @@ function phaseDurationSeconds(phase, settings) {
 export default function StudyTimer({ onSessionComplete, compact = false }) {
   const { colors, isDark } = useTheme();
   const { userId } = useAuth();
+  const { showToast } = useToast();
   const { settings, updateSettings } = usePomodoroSettings();
   const { settings: focusSettings, updateSettings: updateFocusSettings } =
     useFocusModeSettings();
   const [focusSheetOpen, setFocusSheetOpen] = useState(false);
   const [confirmStartOpen, setConfirmStartOpen] = useState(false);
+  const [confirmStopOpen, setConfirmStopOpen] = useState(false);
+  const [celebration, setCelebration] = useState({ open: false, durationSeconds: 0 });
 
   const [mode, setMode] = useState(MODE.POMODORO);
   const [sessionType, setSessionType] = useState(SESSION.SOLO);
   const logCompletedSession = useCallback(
-    ({ durationSeconds, mode: sessionMode, completed = true }) => {
+    async ({ durationSeconds, mode: sessionMode, completed = true, sessionRunId }) => {
       if (!userId || !durationSeconds || durationSeconds < 30) return;
       const endedAt = new Date();
       const startedAt = new Date(endedAt.getTime() - durationSeconds * 1000);
-      logStudySession({
-        user_id: userId,
-        started_at: startedAt.toISOString(),
-        ended_at: endedAt.toISOString(),
-        duration_seconds: Math.round(durationSeconds),
-        mode: sessionMode,
-        session_type: sessionType,
-        focus_mode_enabled: focusSettings?.enabled ?? false,
-        distraction_free: true,
-        completed,
-      }).catch(() => {});
+      try {
+        await logStudySession({
+          user_id: userId,
+          started_at: startedAt.toISOString(),
+          ended_at: endedAt.toISOString(),
+          duration_seconds: Math.round(durationSeconds),
+          mode: sessionMode,
+          session_type: sessionType,
+          focus_mode_enabled: focusSettings?.enabled ?? false,
+          distraction_free: true,
+          completed,
+          session_run_id: sessionRunId,
+        });
+      } catch (err) {
+        console.warn('[logStudySession] failed:', err?.message || err);
+        showToast({ message: `Couldn't save session: ${err?.message || 'unknown error'}`, type: 'error' });
+      }
     },
-    [userId, sessionType, focusSettings]
+    [userId, sessionType, focusSettings, showToast]
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -191,20 +213,30 @@ export default function StudyTimer({ onSessionComplete, compact = false }) {
   const [pomoRunning, setPomoRunning] = useState(false);
   const pomoStartRef = useRef(null);
   const pomoBaseRemainingRef = useRef(settings.focusMinutes * 60);
+  // Shared id for all focus-phase rows in one pomodoro run; null between runs.
+  const pomoRunIdRef = useRef(null);
 
   // Stopwatch state
   const [swElapsed, setSwElapsed] = useState(0);
   const [swRunning, setSwRunning] = useState(false);
   const swStartRef = useRef(null);
   const swBaseElapsedRef = useRef(0);
+  const swRunIdRef = useRef(null);
 
-  // Keep pomodoro remaining in sync with settings when not running and on focus
+  // Tracks whether the user has interacted with the current pomodoro session.
+  // Stays true through pause/resume cycles. Reset to false only when the user
+  // fully stops the session (confirms the Stop dialog) or completes a long break.
+  const pomoTouchedRef = useRef(false);
+
+  // Sync the displayed focus duration with settings changes — but only when the
+  // session is genuinely fresh (never started). Otherwise pausing or editing
+  // settings mid-run would wipe the user's elapsed time.
   useEffect(() => {
-    if (!pomoRunning && phase === PHASE.FOCUS && completedFocusCount === 0) {
-      setPomoRemaining(settings.focusMinutes * 60);
-      pomoBaseRemainingRef.current = settings.focusMinutes * 60;
-    }
-  }, [settings.focusMinutes, pomoRunning, phase, completedFocusCount]);
+    if (pomoTouchedRef.current) return;
+    if (phase !== PHASE.FOCUS || completedFocusCount !== 0) return;
+    setPomoRemaining(settings.focusMinutes * 60);
+    pomoBaseRemainingRef.current = settings.focusMinutes * 60;
+  }, [settings.focusMinutes, phase, completedFocusCount]);
 
   const handlePhaseEnd = useCallback(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
@@ -216,15 +248,22 @@ export default function StudyTimer({ onSessionComplete, compact = false }) {
 
     if (phase === PHASE.FOCUS) {
       nextCompletedFocus = completedFocusCount + 1;
-      const isLong = nextCompletedFocus % settings.cyclesBeforeLongBreak === 0;
-      nextPhase = isLong ? PHASE.LONG_BREAK : PHASE.SHORT_BREAK;
-      onSessionComplete?.({
-        type: 'pomodoro_focus',
-        durationSeconds: settings.focusMinutes * 60,
-      });
+      if (settings.noBreaks) {
+        // Skip breaks entirely — chain straight into another focus phase
+        nextPhase = PHASE.FOCUS;
+      } else {
+        const isLong = nextCompletedFocus % settings.cyclesBeforeLongBreak === 0;
+        nextPhase = isLong ? PHASE.LONG_BREAK : PHASE.SHORT_BREAK;
+      }
       logCompletedSession({
         durationSeconds: settings.focusMinutes * 60,
         mode: 'pomodoro',
+        sessionRunId: pomoRunIdRef.current,
+      }).then(() => {
+        onSessionComplete?.({
+          type: 'pomodoro_focus',
+          durationSeconds: settings.focusMinutes * 60,
+        });
       });
     } else if (phase === PHASE.LONG_BREAK) {
       nextPhase = PHASE.FOCUS;
@@ -297,9 +336,16 @@ export default function StudyTimer({ onSessionComplete, compact = false }) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     pomoStartRef.current = Date.now();
     pomoBaseRemainingRef.current = pomoRemaining;
+    if (!pomoRunIdRef.current) pomoRunIdRef.current = uuidv4();
+    pomoTouchedRef.current = true;
     setPomoRunning(true);
   };
   const handlePomodoroPlay = () => {
+    // Resuming a paused session — skip the start confirmation
+    if (pomoTouchedRef.current) {
+      startPomodoro();
+      return;
+    }
     if (phase === PHASE.FOCUS) {
       Haptics.selectionAsync().catch(() => {});
       setConfirmStartOpen(true);
@@ -315,44 +361,84 @@ export default function StudyTimer({ onSessionComplete, compact = false }) {
     Haptics.selectionAsync().catch(() => {});
     setPomoRunning(false);
   };
-  const resetPomodoro = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    setPomoRunning(false);
-    setPhase(PHASE.FOCUS);
-    setCompletedFocusCount(0);
-    const dur = settings.focusMinutes * 60;
-    setPomoRemaining(dur);
-    pomoBaseRemainingRef.current = dur;
-  };
 
   // Stopwatch controls
   const startStopwatch = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     swStartRef.current = Date.now();
     swBaseElapsedRef.current = swElapsed;
+    if (!swRunIdRef.current) swRunIdRef.current = uuidv4();
     setSwRunning(true);
   };
   const pauseStopwatch = () => {
     Haptics.selectionAsync().catch(() => {});
     setSwRunning(false);
   };
-  const resetStopwatch = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    if (swElapsed >= 30) {
-      logCompletedSession({
-        durationSeconds: swElapsed,
-        mode: 'stopwatch',
-      });
-    }
-    setSwRunning(false);
-    setSwElapsed(0);
-    swBaseElapsedRef.current = 0;
-  };
 
   const switchMode = (next) => {
     if (next === mode) return;
     Haptics.selectionAsync().catch(() => {});
     setMode(next);
+  };
+
+  // Compute how many seconds the user is about to "bank" if they hit stop right now.
+  // For Pomodoro this is only the partially-elapsed focus phase — completed phases
+  // were already saved at the moment they ended.
+  const pendingStopSeconds = (() => {
+    if (mode === MODE.POMODORO) {
+      if (phase !== PHASE.FOCUS) return 0;
+      const elapsed = Math.max(0, settings.focusMinutes * 60 - pomoRemaining);
+      return Math.round(elapsed);
+    }
+    if (mode === MODE.STOPWATCH) {
+      return Math.round(swElapsed);
+    }
+    return 0;
+  })();
+
+  const requestStop = () => {
+    // Nothing in progress for the timer to "stop" — silent reset, no confirm.
+    if (mode === MODE.POMODORO && !pomoRunning && pomoRemaining === settings.focusMinutes * 60 && completedFocusCount === 0) {
+      return;
+    }
+    if (mode === MODE.STOPWATCH && !swRunning && swElapsed === 0) return;
+    Haptics.selectionAsync().catch(() => {});
+    setConfirmStopOpen(true);
+  };
+
+  const performStop = () => {
+    setConfirmStopOpen(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    if (mode === MODE.POMODORO) {
+      const runId = pomoRunIdRef.current;
+      if (pendingStopSeconds >= 30) {
+        logCompletedSession({ durationSeconds: pendingStopSeconds, mode: 'pomodoro', sessionRunId: runId })
+          .then(() => onSessionComplete?.({ type: 'pomodoro_focus', durationSeconds: pendingStopSeconds }));
+      } else if (pendingStopSeconds > 0) {
+        showToast({ message: 'Too short to count — study for at least 30s', type: 'info' });
+      }
+      // Reset Pomodoro state
+      setPomoRunning(false);
+      setPhase(PHASE.FOCUS);
+      setCompletedFocusCount(0);
+      const dur = settings.focusMinutes * 60;
+      setPomoRemaining(dur);
+      pomoBaseRemainingRef.current = dur;
+      pomoTouchedRef.current = false;
+      pomoRunIdRef.current = null;
+    } else {
+      const runId = swRunIdRef.current;
+      if (pendingStopSeconds >= 30) {
+        logCompletedSession({ durationSeconds: pendingStopSeconds, mode: 'stopwatch', sessionRunId: runId })
+          .then(() => onSessionComplete?.({ type: 'stopwatch', durationSeconds: pendingStopSeconds }));
+      } else if (pendingStopSeconds > 0) {
+        showToast({ message: 'Too short to count — study for at least 30s', type: 'info' });
+      }
+      setSwRunning(false);
+      setSwElapsed(0);
+      swBaseElapsedRef.current = 0;
+      swRunIdRef.current = null;
+    }
   };
 
   // Display values
@@ -616,13 +702,7 @@ export default function StudyTimer({ onSessionComplete, compact = false }) {
 
       {/* Controls */}
       <View style={[styles.controls, compact && styles.controlsCompact]}>
-        <TouchableOpacity
-          onPress={isPomodoro ? resetPomodoro : resetStopwatch}
-          style={[styles.secondaryButton, compact && styles.secondaryButtonCompact, { borderColor: colors.border }]}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="refresh" size={compact ? 16 : 20} color={colors.textSecondary} />
-        </TouchableOpacity>
+        <View style={[styles.secondaryPlaceholder, compact && styles.secondaryButtonCompact]} />
 
         <TouchableOpacity
           onPress={
@@ -645,7 +725,25 @@ export default function StudyTimer({ onSessionComplete, compact = false }) {
           />
         </TouchableOpacity>
 
-        <View style={[styles.secondaryPlaceholder, compact && styles.secondaryButtonCompact]} />
+        {((mode === MODE.POMODORO &&
+          (pomoRunning || pomoRemaining !== settings.focusMinutes * 60 || completedFocusCount > 0)) ||
+          (mode === MODE.STOPWATCH && (swRunning || swElapsed > 0))) && (
+          <TouchableOpacity
+            onPress={requestStop}
+            style={[
+              styles.secondaryButton,
+              compact && styles.secondaryButtonCompact,
+              { borderColor: colors.error || '#DC2626' },
+            ]}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="stop"
+              size={compact ? 16 : 20}
+              color={colors.error || '#DC2626'}
+            />
+          </TouchableOpacity>
+        )}
       </View>
 
       <InvitePartnerSheet
@@ -706,7 +804,81 @@ export default function StudyTimer({ onSessionComplete, compact = false }) {
           setTimeout(() => setFocusSheetOpen(true), 200);
         }}
       />
+
+      <ConfirmStopModal
+        visible={confirmStopOpen}
+        onClose={() => setConfirmStopOpen(false)}
+        onConfirm={performStop}
+        pendingSeconds={pendingStopSeconds}
+      />
     </View>
+  );
+}
+
+function ConfirmStopModal({ visible, onClose, onConfirm, pendingSeconds }) {
+  const { colors, isDark } = useTheme();
+  const willSave = pendingSeconds >= 30;
+  const minutes = Math.floor(pendingSeconds / 60);
+  const seconds = pendingSeconds % 60;
+  const durationText = minutes > 0
+    ? `${minutes}m${seconds ? ` ${seconds}s` : ''}`
+    : `${seconds}s`;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <Pressable style={styles.modalBackdrop} onPress={onClose}>
+        <Pressable
+          style={[
+            styles.modalCard,
+            {
+              backgroundColor: colors.cardBackground,
+              borderColor: colors.border,
+              shadowOpacity: isDark ? 0.4 : 0.15,
+            },
+          ]}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+            End this session?
+          </Text>
+          <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+            {willSave
+              ? `We'll save ${durationText} as a completed study session — it'll count toward your streak and XP.`
+              : `You've only studied ${durationText} so far. That's below the 30-second minimum, so it won't be saved.`}
+          </Text>
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={[styles.modalButton, { borderColor: colors.border }]}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.modalButtonText, { color: colors.textSecondary }]}>
+                Keep studying
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={onConfirm}
+              style={[
+                styles.modalButton,
+                { backgroundColor: colors.error || '#DC2626', borderColor: colors.error || '#DC2626' },
+              ]}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="stop" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>
+                {willSave ? 'End & save' : 'End anyway'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -1424,7 +1596,32 @@ function TimerSettingsModal({ visible, onClose, mode, onModeChange, settings, on
             })}
           </View>
 
+          {draftMode === MODE.POMODORO && (
+            <View style={[styles.settingRow, { borderTopColor: colors.border }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>
+                  No breaks
+                </Text>
+                <Text style={{ fontSize: 12, color: colors.textTertiary, marginTop: 2 }}>
+                  Chain focus rounds back-to-back without short or long breaks.
+                </Text>
+              </View>
+              <Switch
+                value={!!draft.noBreaks}
+                onValueChange={(v) => {
+                  Haptics.selectionAsync().catch(() => {});
+                  setDraft({ ...draft, noBreaks: v });
+                }}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={'#FFFFFF'}
+              />
+            </View>
+          )}
+
           {draftMode === MODE.POMODORO && fields.map((f) => {
+            if (draft.noBreaks && (f.key === 'shortBreakMinutes' || f.key === 'longBreakMinutes' || f.key === 'cyclesBeforeLongBreak')) {
+              return null;
+            }
             const limits = POMODORO_LIMITS[f.key];
             return (
               <View

@@ -1,0 +1,3 @@
+- Use @callstack/liquid-glass (or expo-glass-effect) for iOS blur components. 
+- Use expo-blur with blurMethod='dimezisBlurViewSdk31Plus' for Android.
+- Build scrolling profiles using a fixed-position background image and a transparent foreground ScrollView.

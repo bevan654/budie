@@ -38,6 +38,8 @@ import {
 } from '../constants/profileOptions';
 import { getProfileCompleteness } from '../utils/profileCompleteness';
 import { resetMyInteractions } from '../services/matchService';
+import { fetchUserXp } from '../services/xpService';
+import { getRankFromXp, tierProgress, formatXp } from '../constants/rankTiers';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_HEIGHT = Math.round(SCREEN_WIDTH * 1.15);
@@ -61,6 +63,7 @@ export default function ProfileScreen({ navigation }) {
   });
   const [subjectInput, setSubjectInput] = useState('');
   const [pickerSlot, setPickerSlot] = useState(null);
+  const [xp, setXp] = useState(0);
 
   // Settings state
   const [settingsLoading, setSettingsLoading] = useState(false);
@@ -95,6 +98,16 @@ export default function ProfileScreen({ navigation }) {
   useEffect(() => {
     if (profile) setFormData(hydrateForm(profile));
   }, [profile]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    fetchUserXp(userId).then((v) => { if (!cancelled) setXp(v); });
+    return () => { cancelled = true; };
+  }, [userId, editing]);
+
+  const rank = getRankFromXp(xp);
+  const progress = tierProgress(rank, xp);
 
   const handleSave = async () => {
     Keyboard.dismiss();
@@ -538,6 +551,25 @@ export default function ProfileScreen({ navigation }) {
         ) : (
           <>
             {metaLine ? <Text style={styles.metaLine}>{metaLine}</Text> : null}
+
+            <View style={styles.xpBlock}>
+              <View style={styles.xpHeaderRow}>
+                <Text style={styles.xpLabel}>rank</Text>
+                <Text style={styles.xpTotal}>{formatXp(xp)} XP</Text>
+              </View>
+              <View style={styles.xpRankRow}>
+                <Text style={styles.xpRankEmoji}>{rank.emoji}</Text>
+                <Text style={styles.xpRankName}>{rank.name}</Text>
+              </View>
+              <View style={styles.xpTrack}>
+                <View style={[styles.xpFill, { width: `${progress * 100}%` }]} />
+              </View>
+              <Text style={styles.xpNext}>
+                {isFinite(rank.max)
+                  ? `${formatXp(Math.max(0, rank.max - xp))} XP to next tier`
+                  : 'top tier'}
+              </Text>
+            </View>
 
             {profile?.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
 
@@ -1030,6 +1062,63 @@ const createStyles = (colors, inputStyles, insets) => StyleSheet.create({
     color: colors.textPrimary,
     fontFamily: 'Inter_400Regular',
     marginBottom: spacing.xl,
+  },
+
+  // XP block
+  xpBlock: {
+    marginBottom: spacing.xl,
+    paddingBottom: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  xpHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  xpLabel: {
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+    color: colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  xpTotal: {
+    fontSize: 28,
+    fontFamily: 'Inter_700Bold',
+    color: colors.textPrimary,
+    letterSpacing: -0.6,
+  },
+  xpRankRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  xpRankEmoji: {
+    fontSize: 18,
+  },
+  xpRankName: {
+    fontSize: 15,
+    fontFamily: 'Inter_600SemiBold',
+    color: colors.textSecondary,
+  },
+  xpTrack: {
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: colors.border,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  xpFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+  },
+  xpNext: {
+    fontSize: 12,
+    fontFamily: 'Inter_500Medium',
+    color: colors.textTertiary,
   },
 
   // Prompt cards (view)

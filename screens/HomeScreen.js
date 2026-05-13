@@ -32,45 +32,20 @@ import MatchModal from '../components/MatchModal';
 import FilterModal from '../components/FilterModal';
 import AppHeader from '../components/AppHeader';
 import { hapticSuccess, hapticLight, hapticMedium } from '../utils/haptics';
+import { getRankFromXp, tierProgress, formatXp } from '../constants/rankTiers';
+import { fetchUserXp } from '../services/xpService';
+import { fetchUserStreak } from '../services/streakService';
+import { fetchUserWeeklyTotal } from '../services/studySessionService';
+import { TIERS, getTier } from '../utils/streakTiers';
 
 const { width, height } = Dimensions.get('window');
 const PHOTO_HEIGHT = Math.min(520, height * 0.6);
 
-// XP-based tiers — from onboarding (Junior) to extremely rare (Wizard).
-const RANK_TIERS = [
-  { emoji: '🌱', name: 'Junior',       min: 0,        max: 2000 },
-  { emoji: '📚', name: 'Senior',       min: 2001,     max: 10000 },
-  { emoji: '🎓', name: 'Scholar',      min: 10001,    max: 30000 },
-  { emoji: '🧠', name: 'Professor',    min: 30001,    max: 80000 },
-  { emoji: '⚔️',  name: 'Master',       min: 80001,    max: 200000 },
-  { emoji: '👑', name: 'Grand Master', min: 200001,   max: 500000 },
-  { emoji: '🧙', name: 'Wizard',       min: 500001,   max: Infinity },
-];
-
-function getRankFromXp(xp) {
-  return RANK_TIERS.find((t) => xp >= t.min && xp <= t.max) || RANK_TIERS[0];
-}
-
-function formatXp(xp) {
-  if (xp >= 1_000_000) return `${(xp / 1_000_000).toFixed(1)}M`;
-  if (xp >= 1_000) return `${(xp / 1_000).toFixed(1)}k`;
-  return String(xp);
-}
-
-function tierProgress(rank, xp) {
-  const max = isFinite(rank.max) ? rank.max : rank.min + 100_000;
-  return Math.max(0, Math.min(1, (xp - rank.min) / (max - rank.min || 1)));
-}
-
-function placeholderProfileMeta(profile) {
+function streakDaysFallback(profile) {
   const seedSrc = String(profile?.id ?? profile?.name ?? '');
   let seed = 0;
   for (let i = 0; i < seedSrc.length; i++) seed = (seed * 31 + seedSrc.charCodeAt(i)) >>> 0;
-  const days = (seed % 28) + 1;
-  const hoursTenths = (seed % 60) + 5;
-  const xp = seed % 620000;
-  const rank = getRankFromXp(xp);
-  return { days, avgHours: hoursTenths / 10, rank, xp };
+  return (seed % 28) + 1;
 }
 
 export default function HomeScreen({ navigation }) {
@@ -404,7 +379,31 @@ const ProfileScroll = React.forwardRef(function ProfileScroll(
   { profile, colors, isDark, styles },
   ref
 ) {
-  const meta = placeholderProfileMeta(profile);
+  const [xp, setXp] = useState(0);
+  const [streakDays, setStreakDays] = useState(streakDaysFallback(profile));
+  const [avgHours, setAvgHours] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!profile?.id) return;
+    Promise.all([
+      fetchUserXp(profile.id),
+      fetchUserStreak(profile.id).catch(() => ({ current: streakDaysFallback(profile) })),
+      fetchUserWeeklyTotal(profile.id).catch(() => 0),
+    ]).then(([userXp, streak, weeklySec]) => {
+      if (cancelled) return;
+      setXp(userXp);
+      setStreakDays(streak?.current ?? streakDaysFallback(profile));
+      setAvgHours((weeklySec || 0) / 3600 / 7);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id]);
+
+  const rank = getRankFromXp(xp);
+  const streakTier = getTier(avgHours) || TIERS.COLD;
+  const meta = { days: streakDays, rank, xp, streakTier };
 
   const Row = ({ icon, label, value }) => {
     if (!value) return null;
@@ -479,12 +478,12 @@ const ProfileScroll = React.forwardRef(function ProfileScroll(
       <View style={styles.statsBetween}>
         <View style={styles.statCol}>
           <View style={styles.statTop}>
-            <View style={[styles.statIconWrap, { backgroundColor: '#FFEDD5' }]}>
-              <Ionicons name="flame" size={14} color="#F97316" />
+            <View style={[styles.statIconWrap, { backgroundColor: meta.streakTier.color + '22' }]}>
+              <Ionicons name="flame" size={14} color={meta.streakTier.color} />
             </View>
-            <Text style={styles.statValue}>{meta.days}</Text>
+            <Text style={[styles.statValue, { color: meta.streakTier.color }]}>{meta.days}</Text>
           </View>
-          <Text style={styles.statLabel}>Day streak</Text>
+          <Text style={styles.statLabel}>{meta.streakTier.name} streak</Text>
         </View>
 
         <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
