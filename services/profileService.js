@@ -1,5 +1,9 @@
 import { supabase } from '../lib/supabase';
 import { resolveProfilePhoto, resolveProfilePhotos } from './photoService';
+import { BROAD_DISCIPLINE_PATTERNS } from '../constants/disciplines';
+
+// Escapes commas and parens which would otherwise break PostgREST .or() syntax.
+const escapeOrValue = (v) => String(v).replace(/[,()]/g, ' ');
 
 export const fetchProfile = async (userId) => {
   const { data, error } = await supabase
@@ -55,15 +59,28 @@ export const fetchProfiles = async (currentUserId, filters = {}) => {
   }
 
   if (filters.courses?.length > 0) {
-    query = query.in('course', filters.courses);
+    if (filters.courseMode === 'specific') {
+      // Free-text course names — match anywhere in the course string, case-insensitive.
+      const patterns = filters.courses
+        .map((c) => `course.ilike.%${escapeOrValue(c)}%`)
+        .join(',');
+      query = query.or(patterns);
+    } else {
+      // Broad discipline — expand each discipline to its ilike patterns.
+      const patterns = filters.courses
+        .flatMap((d) => BROAD_DISCIPLINE_PATTERNS[d] || [])
+        .map((p) => `course.ilike.${p}`)
+        .join(',');
+      if (patterns.length > 0) query = query.or(patterns);
+    }
   }
 
   if (filters.years?.length > 0) {
     query = query.in('course_year', filters.years);
   }
 
-  if (filters.studyTimes?.length > 0) {
-    query = query.in('study_time', filters.studyTimes);
+  if (filters.studyStyles?.length > 0) {
+    query = query.in('study_style', filters.studyStyles);
   }
 
   if (filters.ageRange) {

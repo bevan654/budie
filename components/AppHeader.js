@@ -141,7 +141,7 @@ function StreakDetail({ title, subtitle, icon, days, avgHours, freezesUsed }) {
   );
 }
 
-export default function AppHeader({ right }) {
+export default function AppHeader({ right, subtitle }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { userId } = useAuth();
@@ -189,9 +189,16 @@ export default function AppHeader({ right }) {
         ]}
       >
         <View style={styles.row}>
-          <View style={styles.brandWrap}>
-            <Text style={[styles.brand, { color: colors.primary }]}>buddie</Text>
-            <View style={[styles.brandDot, { backgroundColor: colors.primary }]} />
+          <View style={styles.brandColumn}>
+            <View style={styles.brandWrap}>
+              <Text style={[styles.brand, { color: colors.primary }]}>buddie</Text>
+              <View style={[styles.brandDot, { backgroundColor: colors.primary }]} />
+            </View>
+            {subtitle ? (
+              <Text style={[styles.brandSubtitle, { color: colors.textSecondary }]}>
+                {subtitle}
+              </Text>
+            ) : null}
           </View>
 
           <View style={styles.right}>
@@ -202,13 +209,6 @@ export default function AppHeader({ right }) {
                 days={personal.days}
                 avgHours={personal.avgHours}
                 freezesUsed={personal.freezesUsed}
-                onPress={open}
-              />
-              <StreakChip
-                icon="people"
-                days={buddy.days}
-                avgHours={buddy.avgHours}
-                freezesUsed={buddy.freezesUsed}
                 onPress={open}
               />
             </View>
@@ -299,9 +299,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     minHeight: 36,
   },
+  brandColumn: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
   brandWrap: {
     flexDirection: 'row',
     alignItems: 'flex-end',
+  },
+  brandSubtitle: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    letterSpacing: 0.2,
+    marginTop: 2,
   },
   brand: {
     fontFamily: 'Inter_800ExtraBold',

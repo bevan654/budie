@@ -16,8 +16,9 @@ const FILTER_STORAGE_KEY = '@budie_filters';
 const defaultFilters = {
   universities: [],
   courses: [],
+  courseMode: 'broad',
   years: [],
-  studyTimes: [],
+  studyStyles: [],
   ageRange: [18, 99],
 };
 
@@ -69,7 +70,7 @@ export const FilterProvider = ({ children }) => {
       activeFilters.universities?.length > 0 ||
       activeFilters.courses.length > 0 ||
       activeFilters.years.length > 0 ||
-      activeFilters.studyTimes.length > 0 ||
+      (activeFilters.studyStyles?.length || 0) > 0 ||
       activeFilters.ageRange[0] !== 18 ||
       activeFilters.ageRange[1] !== 99
     );

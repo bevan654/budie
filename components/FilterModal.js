@@ -16,38 +16,47 @@ import Button from './Button';
 import FilterChip from './FilterChip';
 import { hapticMedium, hapticLight } from '../utils/haptics';
 import { UNIVERSITIES } from '../constants/universities';
-
-const COURSES = [
-  'Computer Science',
-  'Engineering',
-  'Mathematics',
-  'Physics',
-  'Biology',
-  'Chemistry',
-  'Business',
-  'Economics',
-  'Psychology',
-  'Medicine',
-  'Law',
-  'Arts',
-];
+import { BROAD_DISCIPLINES } from '../constants/disciplines';
 
 const YEARS = ['1', '2', '3', '4', 'Postgrad'];
 
-const STUDY_TIMES = ['Morning', 'Afternoon', 'Evening', 'Night', 'Flexible'];
+const STUDY_STYLES = [
+  'Silent coworking',
+  'Non-silent coworking',
+  'Teaching each other (Feynman style)',
+];
 
 export default function FilterModal({ visible, onClose, initialFilters, onApply }) {
   const [filters, setFilters] = useState(initialFilters);
   const [uniSearch, setUniSearch] = useState('');
+  const [specificInput, setSpecificInput] = useState('');
   const { colors, shadows } = useTheme();
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
 
   useEffect(() => {
     if (visible) {
-      setFilters(initialFilters);
+      setFilters({ courseMode: 'broad', ...initialFilters });
       setUniSearch('');
+      setSpecificInput('');
     }
   }, [visible, initialFilters]);
+
+  const switchCourseMode = (mode) => {
+    if (filters.courseMode === mode) return;
+    hapticLight();
+    setFilters({ ...filters, courseMode: mode, courses: [] });
+  };
+
+  const addSpecificCourse = () => {
+    const value = specificInput.trim();
+    if (!value) return;
+    if ((filters.courses || []).some((c) => c.toLowerCase() === value.toLowerCase())) {
+      setSpecificInput('');
+      return;
+    }
+    setFilters({ ...filters, courses: [...(filters.courses || []), value] });
+    setSpecificInput('');
+  };
 
   const filteredUnis = useMemo(() => {
     if (!uniSearch.trim()) return [];
@@ -70,7 +79,7 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
       (filters.universities?.length || 0) +
       (filters.courses?.length || 0) +
       (filters.years?.length || 0) +
-      (filters.studyTimes?.length || 0) +
+      (filters.studyStyles?.length || 0) +
       (filters.ageRange[0] !== 18 || filters.ageRange[1] !== 99 ? 1 : 0)
     );
   }, [filters]);
@@ -80,10 +89,12 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
     setFilters({
       universities: [],
       courses: [],
+      courseMode: 'broad',
       years: [],
-      studyTimes: [],
+      studyStyles: [],
       ageRange: [18, 99],
     });
+    setSpecificInput('');
   };
 
   const handleApply = () => {
@@ -193,16 +204,89 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
           {/* Course */}
           <View style={styles.section}>
             {renderSectionHeader('school-outline', 'Course', filters.courses.length)}
-            <View style={styles.chipContainer}>
-              {COURSES.map(course => (
-                <FilterChip
-                  key={course}
-                  label={course}
-                  selected={filters.courses.includes(course)}
-                  onPress={() => toggleArrayFilter('courses', course)}
-                />
-              ))}
+
+            <View style={styles.segmented}>
+              <TouchableOpacity
+                style={[
+                  styles.segmentBtn,
+                  filters.courseMode !== 'specific' && styles.segmentBtnActive,
+                ]}
+                onPress={() => switchCourseMode('broad')}
+                activeOpacity={0.85}
+              >
+                <Text
+                  style={[
+                    styles.segmentText,
+                    filters.courseMode !== 'specific' && styles.segmentTextActive,
+                  ]}
+                >
+                  Broad discipline
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.segmentBtn,
+                  filters.courseMode === 'specific' && styles.segmentBtnActive,
+                ]}
+                onPress={() => switchCourseMode('specific')}
+                activeOpacity={0.85}
+              >
+                <Text
+                  style={[
+                    styles.segmentText,
+                    filters.courseMode === 'specific' && styles.segmentTextActive,
+                  ]}
+                >
+                  Specific course
+                </Text>
+              </TouchableOpacity>
             </View>
+
+            {filters.courseMode === 'specific' ? (
+              <>
+                <View style={styles.searchInputWrap}>
+                  <Ionicons name="school-outline" size={16} color={colors.textTertiary} style={{ marginRight: 8 }} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="e.g. Computer Science with AI"
+                    placeholderTextColor={colors.textTertiary}
+                    value={specificInput}
+                    onChangeText={setSpecificInput}
+                    onSubmitEditing={addSpecificCourse}
+                    returnKeyType="done"
+                    autoCorrect={false}
+                  />
+                  {specificInput.length > 0 && (
+                    <TouchableOpacity onPress={addSpecificCourse} style={styles.addBtn}>
+                      <Ionicons name="add" size={18} color={colors.primary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {(filters.courses || []).length > 0 && (
+                  <View style={styles.chipContainer}>
+                    {filters.courses.map((c) => (
+                      <FilterChip
+                        key={c}
+                        label={c}
+                        selected
+                        onPress={() => toggleArrayFilter('courses', c)}
+                      />
+                    ))}
+                  </View>
+                )}
+              </>
+            ) : (
+              <View style={styles.chipContainer}>
+                {BROAD_DISCIPLINES.map((d) => (
+                  <FilterChip
+                    key={d}
+                    label={d}
+                    selected={filters.courses.includes(d)}
+                    onPress={() => toggleArrayFilter('courses', d)}
+                  />
+                ))}
+              </View>
+            )}
           </View>
 
           {/* Year */}
@@ -220,16 +304,16 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
             </View>
           </View>
 
-          {/* Study Time */}
+          {/* Study Style */}
           <View style={styles.section}>
-            {renderSectionHeader('time-outline', 'Study Time', filters.studyTimes.length)}
+            {renderSectionHeader('book-outline', 'Study Style', filters.studyStyles?.length || 0)}
             <View style={styles.chipContainer}>
-              {STUDY_TIMES.map(time => (
+              {STUDY_STYLES.map((s) => (
                 <FilterChip
-                  key={time}
-                  label={time}
-                  selected={filters.studyTimes.includes(time)}
-                  onPress={() => toggleArrayFilter('studyTimes', time)}
+                  key={s}
+                  label={s}
+                  selected={(filters.studyStyles || []).includes(s)}
+                  onPress={() => toggleArrayFilter('studyStyles', s)}
                 />
               ))}
             </View>
@@ -456,6 +540,49 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginBottom: spacing.xs,
+  },
+
+  // Segmented control (course mode)
+  segmented: {
+    flexDirection: 'row',
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.md,
+    padding: 4,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  segmentBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: borderRadius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentBtnActive: {
+    backgroundColor: colors.cardBackground,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  segmentText: {
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+    color: colors.textTertiary,
+  },
+  segmentTextActive: {
+    color: colors.textPrimary,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  addBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   // Age Range

@@ -85,7 +85,7 @@ export default function HomeFeedScreen({ navigation }) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader />
+      <AppHeader subtitle="Your study at a glance" />
 
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         <LinearGradient

@@ -44,7 +44,7 @@ export default function SignUpStepPreferences({ navigation }) {
     }
 
     updateFields({ studyTime, currentMood });
-    navigation.navigate('SignUpStepDetails');
+    navigation.navigate('SignUpStepPhotoBio');
   };
 
   return (

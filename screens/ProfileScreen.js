@@ -36,6 +36,7 @@ import {
   MAX_PROMPTS,
   MAX_SUBJECTS,
 } from '../constants/profileOptions';
+import { getProfileCompleteness } from '../utils/profileCompleteness';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_HEIGHT = Math.round(SCREEN_WIDTH * 1.15);
@@ -300,7 +301,7 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <View style={styles.outer}>
-      <AppHeader />
+      <AppHeader subtitle="Your account & settings" />
       <ScrollView
         style={styles.container}
         showsVerticalScrollIndicator={false}
@@ -329,6 +330,31 @@ export default function ProfileScreen({ navigation }) {
         </View>
         <PhotoUploadButton userId={userId} onUploadComplete={handlePhotoUpload} />
       </View>
+
+      {/* Profile completeness — visible when not 100% */}
+      {!editing && profile && getProfileCompleteness(profile) < 100 ? (
+        <TouchableOpacity
+          style={styles.completionCard}
+          activeOpacity={0.9}
+          onPress={() => setEditing(true)}
+        >
+          <View style={styles.completionTopRow}>
+            <Text style={styles.completionTitle}>Complete your profile</Text>
+            <Text style={styles.completionPercent}>{getProfileCompleteness(profile)}%</Text>
+          </View>
+          <View style={styles.completionTrack}>
+            <View
+              style={[
+                styles.completionFill,
+                { width: `${getProfileCompleteness(profile)}%` },
+              ]}
+            />
+          </View>
+          <Text style={styles.completionHint}>
+            Add prompts, subjects, interests and availability so matches know what you're about.
+          </Text>
+        </TouchableOpacity>
+      ) : null}
 
       {/* Action Row */}
       <View style={styles.actionRow}>

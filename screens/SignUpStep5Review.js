@@ -68,6 +68,11 @@ export default function SignUpStep5Review({ navigation }) {
               console.warn('Photo upload failed:', photoError.message);
             }
           }
+          try {
+            await AsyncStorage.setItem('@budie_show_complete_profile_prompt', '1');
+          } catch (e) {
+            console.warn('Failed to set complete-profile flag:', e.message);
+          }
           resetForm();
           showToast({ message: 'Account created successfully!', type: 'success' });
           navigation.navigate('Login');
@@ -81,6 +86,11 @@ export default function SignUpStep5Review({ navigation }) {
             } catch (e) {
               console.warn('Failed to stash pending photo:', e.message);
             }
+          }
+          try {
+            await AsyncStorage.setItem('@budie_show_complete_profile_prompt', '1');
+          } catch (e) {
+            console.warn('Failed to set complete-profile flag:', e.message);
           }
           resetForm();
           Alert.alert(
@@ -159,15 +169,6 @@ export default function SignUpStep5Review({ navigation }) {
         {renderSectionHeader('bulb-outline', 'Study Preferences', 'SignUpStepPreferences')}
         {renderRow('Study Time', formData.studyTime?.join(', ') || '--')}
         {renderRow('Mood', formData.currentMood?.join(', ') || '--')}
-      </View>
-
-      {/* More About You */}
-      <View style={styles.section}>
-        {renderSectionHeader('sparkles-outline', 'More About You', 'SignUpStepDetails')}
-        {renderRow('Prompts', formData.prompts?.length ? `${formData.prompts.length} answered` : 'None')}
-        {renderRow('Subjects', formData.subjects?.join(', ') || 'None')}
-        {renderRow('Interests', formData.interests?.join(', ') || 'None')}
-        {renderRow('Available', formData.availability?.join(', ') || 'None')}
       </View>
 
       {/* Profile */}

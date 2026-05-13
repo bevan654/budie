@@ -7,7 +7,6 @@ import SignUpStep1Email from '../screens/SignUpStep1Email';
 import SignUpStep2Name from '../screens/SignUpStep2Name';
 import SignUpStep3University from '../screens/SignUpStep3University';
 import SignUpStepPreferences from '../screens/SignUpStepPreferences';
-import SignUpStepDetails from '../screens/SignUpStepDetails';
 import SignUpStepPhotoBio from '../screens/SignUpStepPhotoBio';
 import SignUpStep4Account from '../screens/SignUpStep4Account';
 import SignUpStep5Review from '../screens/SignUpStep5Review';
@@ -65,13 +64,6 @@ export default function AuthNavigator() {
         <Stack.Screen
           name="SignUpStepPreferences"
           component={SignUpStepPreferences}
-          options={{
-            cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
-          }}
-        />
-        <Stack.Screen
-          name="SignUpStepDetails"
-          component={SignUpStepDetails}
           options={{
             cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
           }}

@@ -10,7 +10,7 @@ export default function StudyScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <AppHeader />
+      <AppHeader subtitle="Focus. Track. Level up." />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
