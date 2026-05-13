@@ -402,7 +402,7 @@ const ProfileScroll = React.forwardRef(function ProfileScroll(
   }, [profile?.id]);
 
   const rank = getRankFromXp(xp);
-  const streakTier = getTier(avgHours) || TIERS.COLD;
+  const streakTier = streakDays > 0 ? (getTier(avgHours) || TIERS.COLD) : TIERS.NONE;
   const meta = { days: streakDays, rank, xp, streakTier };
 
   const Row = ({ icon, label, value }) => {

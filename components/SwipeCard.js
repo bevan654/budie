@@ -44,7 +44,7 @@ export default function SwipeCard({ profile, onPress, onLike, onDislike }) {
   }, [profile?.id]);
 
   const rank = getRankFromXp(xp);
-  const streakTier = getTier(avgHours) || TIERS.COLD;
+  const streakTier = streakDays > 0 ? (getTier(avgHours) || TIERS.COLD) : TIERS.NONE;
   const meta = { days: streakDays, rank, xp, streakTier };
 
   return (

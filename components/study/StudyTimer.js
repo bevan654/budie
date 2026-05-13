@@ -818,6 +818,12 @@ export default function StudyTimer({ onSessionComplete, compact = false }) {
         onConfirm={performStop}
         pendingSeconds={pendingStopSeconds}
       />
+
+      <SessionCompleteModal
+        visible={celebration.open}
+        durationSeconds={celebration.durationSeconds}
+        onClose={() => setCelebration({ open: false, durationSeconds: 0 })}
+      />
     </View>
   );
 }

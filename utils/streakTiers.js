@@ -1,4 +1,12 @@
 export const TIERS = {
+  NONE: {
+    key: 'none',
+    name: 'Slacker',
+    minHours: 0,
+    color: '#78716C', // sad stone-grey
+    glow: '#78716C',
+    description: 'no streak — get studying',
+  },
   COLD: {
     key: 'cold',
     name: 'Cold',

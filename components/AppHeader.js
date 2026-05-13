@@ -18,8 +18,8 @@ import { fetchUserWeeklyTotal } from '../services/studySessionService';
 const DEFAULT_STREAK = { days: 0, avgHours: 0, freezesUsed: 0 };
 
 function StreakChip({ icon, days, avgHours, freezesUsed, onPress }) {
-  const tier = getTier(avgHours) || TIERS.COLD;
-  const hasAura = freezesUsed === 0;
+  const tier = days > 0 ? (getTier(avgHours) || TIERS.COLD) : TIERS.NONE;
+  const hasAura = days > 0 && freezesUsed === 0;
 
   const auraStyle = hasAura
     ? {
@@ -45,8 +45,8 @@ function StreakChip({ icon, days, avgHours, freezesUsed, onPress }) {
 
 function StreakDetail({ title, subtitle, icon, days, avgHours, freezesUsed }) {
   const { colors } = useTheme();
-  const tier = getTier(avgHours) || TIERS.COLD;
-  const hasAura = freezesUsed === 0;
+  const tier = days > 0 ? (getTier(avgHours) || TIERS.COLD) : TIERS.NONE;
+  const hasAura = days > 0 && freezesUsed === 0;
   const remaining = MAX_FREEZES - freezesUsed;
 
   return (
