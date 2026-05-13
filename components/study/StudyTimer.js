@@ -260,6 +260,7 @@ export default function StudyTimer({ onSessionComplete, compact = false }) {
         mode: 'pomodoro',
         sessionRunId: pomoRunIdRef.current,
       }).then(() => {
+        setCelebration({ open: true, durationSeconds: settings.focusMinutes * 60 });
         onSessionComplete?.({
           type: 'pomodoro_focus',
           durationSeconds: settings.focusMinutes * 60,
@@ -413,7 +414,10 @@ export default function StudyTimer({ onSessionComplete, compact = false }) {
       const runId = pomoRunIdRef.current;
       if (pendingStopSeconds >= 30) {
         logCompletedSession({ durationSeconds: pendingStopSeconds, mode: 'pomodoro', sessionRunId: runId })
-          .then(() => onSessionComplete?.({ type: 'pomodoro_focus', durationSeconds: pendingStopSeconds }));
+          .then(() => {
+            setCelebration({ open: true, durationSeconds: pendingStopSeconds });
+            onSessionComplete?.({ type: 'pomodoro_focus', durationSeconds: pendingStopSeconds });
+          });
       } else if (pendingStopSeconds > 0) {
         showToast({ message: 'Too short to count — study for at least 30s', type: 'info' });
       }
@@ -430,7 +434,10 @@ export default function StudyTimer({ onSessionComplete, compact = false }) {
       const runId = swRunIdRef.current;
       if (pendingStopSeconds >= 30) {
         logCompletedSession({ durationSeconds: pendingStopSeconds, mode: 'stopwatch', sessionRunId: runId })
-          .then(() => onSessionComplete?.({ type: 'stopwatch', durationSeconds: pendingStopSeconds }));
+          .then(() => {
+            setCelebration({ open: true, durationSeconds: pendingStopSeconds });
+            onSessionComplete?.({ type: 'stopwatch', durationSeconds: pendingStopSeconds });
+          });
       } else if (pendingStopSeconds > 0) {
         showToast({ message: 'Too short to count — study for at least 30s', type: 'info' });
       }
