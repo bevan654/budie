@@ -13,12 +13,6 @@ const DEFAULTS = {
   dailyAverage: '0m',
   weeklyTotal: '0m',
   weeklyTotalDelta: '+ 0m vs last week',
-  solo: 0,
-  buddy: 0,
-  silent: 0,
-  nonSilent: 0,
-  distractionFree: 0,
-  totalSessions: 0,
 };
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -210,109 +204,6 @@ function WeeklyTotalHero() {
   );
 }
 
-function RatioBar({ title, leftLabel, leftValue, leftColor, rightLabel, rightValue, rightColor }) {
-  const { colors } = useTheme();
-  const total = leftValue + rightValue || 1;
-  const leftPct = (leftValue / total) * 100;
-
-  return (
-    <View style={styles.ratioBlock}>
-      <View style={styles.ratioHeader}>
-        <Text style={[styles.ratioTitle, { color: colors.textPrimary }]}>
-          {title}
-        </Text>
-        <Text style={[styles.ratioTotal, { color: colors.textTertiary }]}>
-          {total} total
-        </Text>
-      </View>
-      <View style={[styles.ratioTrack, { backgroundColor: colors.backgroundSecondary }]}>
-        <View
-          style={[
-            styles.ratioFill,
-            { width: `${leftPct}%`, backgroundColor: leftColor },
-          ]}
-        />
-        <View
-          style={[
-            styles.ratioFill,
-            {
-              width: `${100 - leftPct}%`,
-              backgroundColor: rightColor,
-            },
-          ]}
-        />
-      </View>
-      <View style={styles.ratioLegend}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: leftColor }]} />
-          <Text style={[styles.legendLabel, { color: colors.textPrimary }]}>
-            {leftLabel}
-          </Text>
-          <Text style={[styles.legendValue, { color: colors.textSecondary }]}>
-            {leftValue}
-          </Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: rightColor }]} />
-          <Text style={[styles.legendLabel, { color: colors.textPrimary }]}>
-            {rightLabel}
-          </Text>
-          <Text style={[styles.legendValue, { color: colors.textSecondary }]}>
-            {rightValue}
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function DistractionFreeBlock() {
-  const { colors, isDark } = useTheme();
-  const stats = useStats();
-  const total = stats.totalSessions;
-  const free = stats.distractionFree;
-  const pct = total > 0 ? (free / total) * 100 : 0;
-  return (
-    <View
-      style={[
-        styles.distractionCard,
-        {
-          backgroundColor: colors.cardBackground,
-          borderColor: colors.border,
-          shadowOpacity: isDark ? 0.25 : 0.05,
-        },
-      ]}
-    >
-      <View style={[styles.iconWrap, { backgroundColor: colors.primaryLight }]}>
-        <Ionicons name="shield-checkmark" size={18} color={colors.primary} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <View style={styles.distractionRow}>
-          <Text style={[styles.distractionValue, { color: colors.textPrimary }]}>
-            {free}
-          </Text>
-          <Text style={[styles.distractionTotal, { color: colors.textTertiary }]}>
-            / {total}
-          </Text>
-        </View>
-        <Text style={[styles.distractionLabel, { color: colors.textSecondary }]}>
-          Distraction-free sessions
-        </Text>
-        <View
-          style={[styles.distractionTrack, { backgroundColor: colors.backgroundSecondary }]}
-        >
-          <View
-            style={[
-              styles.distractionFill,
-              { width: `${pct}%`, backgroundColor: colors.primary },
-            ]}
-          />
-        </View>
-      </View>
-    </View>
-  );
-}
-
 export default function StatsGrid() {
   const { colors } = useTheme();
   const { userId } = useAuth();
@@ -346,29 +237,6 @@ export default function StatsGrid() {
         <SectionTitle>TIME</SectionTitle>
         <DailyChart />
         <WeeklyTotalHero />
-      </View>
-
-      <View style={styles.section}>
-        <SectionTitle>SESSIONS</SectionTitle>
-        <RatioBar
-          title="Solo vs Buddy"
-          leftLabel="Solo"
-          leftValue={stats.solo}
-          leftColor={colors.primary}
-          rightLabel="Buddy"
-          rightValue={stats.buddy}
-          rightColor={colors.success}
-        />
-        <RatioBar
-          title="Silent vs Non-silent"
-          leftLabel="Silent"
-          leftValue={stats.silent}
-          leftColor={colors.purple}
-          rightLabel="Non-silent"
-          rightValue={stats.nonSilent}
-          rightColor={colors.warning}
-        />
-        <DistractionFreeBlock />
       </View>
     </View>
     </StatsContext.Provider>
