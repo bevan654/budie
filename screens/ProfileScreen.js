@@ -37,6 +37,7 @@ import {
   MAX_SUBJECTS,
 } from '../constants/profileOptions';
 import { getProfileCompleteness } from '../utils/profileCompleteness';
+import { resetMyInteractions } from '../services/matchService';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_HEIGHT = Math.round(SCREEN_WIDTH * 1.15);
@@ -63,6 +64,7 @@ export default function ProfileScreen({ navigation }) {
 
   // Settings state
   const [settingsLoading, setSettingsLoading] = useState(false);
+  const [resettingFeed, setResettingFeed] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(true);
   const [messageNotifs, setMessageNotifs] = useState(true);
   const [matchNotifs, setMatchNotifs] = useState(true);
@@ -136,6 +138,33 @@ export default function ProfileScreen({ navigation }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleResetInteractions = () => {
+    hapticLight();
+    Alert.alert(
+      'Reset likes & dislikes?',
+      "This will clear every profile you've liked or passed on, plus any current matches. They'll all reappear in the search feed.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            if (!userId) return;
+            setResettingFeed(true);
+            try {
+              await resetMyInteractions(userId);
+              showToast({ message: 'Likes & dislikes reset', type: 'success' });
+            } catch (error) {
+              showToast({ message: getErrorMessage(error), type: 'error' });
+            } finally {
+              setResettingFeed(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleCancel = () => {
@@ -699,6 +728,13 @@ export default function ProfileScreen({ navigation }) {
               value="Everyone"
               onPress={() => { hapticLight(); showToast({ message: 'Coming soon!', type: 'info' }); }}
             />
+            <SettingRow
+              icon="refresh"
+              iconColor={colors.error}
+              label="Reset likes & dislikes"
+              value={resettingFeed ? 'Resetting…' : undefined}
+              onPress={resettingFeed ? undefined : handleResetInteractions}
+            />
           </View>
         </View>
 
@@ -879,6 +915,52 @@ const createStyles = (colors, inputStyles, insets) => StyleSheet.create({
     color: 'rgba(255,255,255,0.88)',
     fontFamily: 'Inter_500Medium',
     marginTop: 4,
+  },
+
+  // Completion card
+  completionCard: {
+    marginHorizontal: 24,
+    marginTop: spacing.lg,
+    padding: 16,
+    backgroundColor: colors.primaryLight,
+    borderRadius: borderRadius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.primary + '40',
+  },
+  completionTopRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  completionTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 15,
+    letterSpacing: -0.2,
+    color: colors.textPrimary,
+  },
+  completionPercent: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 16,
+    color: colors.primary,
+  },
+  completionTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.cardBackground,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  completionFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 3,
+  },
+  completionHint: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 17,
   },
 
   // Action row

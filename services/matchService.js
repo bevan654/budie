@@ -101,6 +101,23 @@ export const unmatch = async (matchId) => {
   }
 };
 
+// Wipes the user's outgoing likes plus any matches they're part of, so every
+// profile they've previously swiped on becomes visible again. Dislikes aren't
+// persisted in the DB — clearing local feed state is enough for those.
+export const resetMyInteractions = async (userId) => {
+  const { error: likesError } = await supabase
+    .from('likes')
+    .delete()
+    .eq('liker_id', userId);
+  if (likesError) throw likesError;
+
+  const { error: matchesError } = await supabase
+    .from('matches')
+    .delete()
+    .or(`user1_id.eq.${userId},user2_id.eq.${userId}`);
+  if (matchesError) throw matchesError;
+};
+
 export const getUnreadMatchCount = async (userId) => {
   const matches = await fetchMatches(userId);
   let count = 0;

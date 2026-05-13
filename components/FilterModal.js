@@ -8,28 +8,75 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { typography, spacing, borderRadius } from '../constants/theme';
 import Button from './Button';
 import FilterChip from './FilterChip';
+import RangeSlider from './RangeSlider';
 import { hapticMedium, hapticLight } from '../utils/haptics';
 import { UNIVERSITIES } from '../constants/universities';
 import { BROAD_DISCIPLINES } from '../constants/disciplines';
 
 const YEARS = ['1', '2', '3', '4', 'Postgrad'];
 
-const STUDY_STYLES = [
-  'Silent coworking',
-  'Non-silent coworking',
-  'Teaching each other (Feynman style)',
+const STUDY_STYLE_OPTIONS = [
+  {
+    key: 'silent',
+    label: 'Silent',
+    description: 'Quiet, head-down focus. No talking — just shared productivity.',
+  },
+  {
+    key: 'non_silent',
+    label: 'Non-silent',
+    description: 'Light chat is welcome — share progress, vent, ask quick questions.',
+  },
+  {
+    key: 'teaching',
+    label: 'Teaching',
+    description: 'Trade explanations. Teach a concept to lock it in (Feynman style).',
+  },
 ];
+
+function CollapsibleSection({ icon, title, summary, count, open, onToggle, colors, styles, children }) {
+  return (
+    <View style={styles.collapseWrap}>
+      <TouchableOpacity
+        style={styles.collapseHeader}
+        onPress={onToggle}
+        activeOpacity={0.7}
+      >
+        <View style={styles.sectionIconWrap}>
+          <Ionicons name={icon} size={16} color={colors.primary} />
+        </View>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {summary ? (
+          <Text style={styles.collapseSummary} numberOfLines={1}>
+            {summary}
+          </Text>
+        ) : null}
+        {count > 0 && (
+          <View style={styles.countBadge}>
+            <Text style={styles.countBadgeText}>{count}</Text>
+          </View>
+        )}
+        <Ionicons
+          name={open ? 'chevron-up' : 'chevron-down'}
+          size={18}
+          color={colors.textTertiary}
+          style={{ marginLeft: 8 }}
+        />
+      </TouchableOpacity>
+      {open ? <View style={styles.collapseBody}>{children}</View> : null}
+    </View>
+  );
+}
 
 export default function FilterModal({ visible, onClose, initialFilters, onApply }) {
   const [filters, setFilters] = useState(initialFilters);
   const [uniSearch, setUniSearch] = useState('');
   const [specificInput, setSpecificInput] = useState('');
+  const [openSection, setOpenSection] = useState(null);
   const { colors, shadows } = useTheme();
   const styles = useMemo(() => createStyles(colors, shadows), [colors, shadows]);
 
@@ -38,8 +85,20 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
       setFilters({ courseMode: 'broad', ...initialFilters });
       setUniSearch('');
       setSpecificInput('');
+      setOpenSection(null);
     }
   }, [visible, initialFilters]);
+
+  const toggleSection = (key) => {
+    hapticLight();
+    setOpenSection((prev) => (prev === key ? null : key));
+  };
+
+  const selectStudyStyle = (key) => {
+    hapticLight();
+    const current = (filters.studyStyles || [])[0];
+    setFilters({ ...filters, studyStyles: current === key ? [] : [key] });
+  };
 
   const switchCourseMode = (mode) => {
     if (filters.courseMode === mode) return;
@@ -150,9 +209,17 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.contentInner}
         >
-          {/* University */}
-          <View style={styles.section}>
-            {renderSectionHeader('business-outline', 'University', filters.universities?.length || 0)}
+          {/* University — collapsible */}
+          <CollapsibleSection
+            icon="business-outline"
+            title="University"
+            count={filters.universities?.length || 0}
+            summary={(filters.universities || []).slice(0, 2).join(', ')}
+            open={openSection === 'university'}
+            onToggle={() => toggleSection('university')}
+            colors={colors}
+            styles={styles}
+          >
             {(filters.universities || []).length > 0 && (
               <View style={styles.chipContainer}>
                 {(filters.universities || []).map(uni => (
@@ -199,12 +266,23 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
             {uniSearch.trim().length > 0 && filteredUnis.length === 0 && (
               <Text style={styles.noResults}>No universities found</Text>
             )}
-          </View>
+          </CollapsibleSection>
 
-          {/* Course */}
-          <View style={styles.section}>
-            {renderSectionHeader('school-outline', 'Course', filters.courses.length)}
-
+          {/* Course — collapsible */}
+          <CollapsibleSection
+            icon="school-outline"
+            title="Course"
+            count={filters.courses.length}
+            summary={
+              filters.courseMode === 'specific'
+                ? (filters.courses[0] || '')
+                : filters.courses.slice(0, 2).join(', ')
+            }
+            open={openSection === 'course'}
+            onToggle={() => toggleSection('course')}
+            colors={colors}
+            styles={styles}
+          >
             <View style={styles.segmented}>
               <TouchableOpacity
                 style={[
@@ -287,103 +365,114 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
                 ))}
               </View>
             )}
-          </View>
+          </CollapsibleSection>
 
-          {/* Year */}
-          <View style={styles.section}>
-            {renderSectionHeader('calendar-outline', 'Year', filters.years.length)}
-            <View style={styles.chipContainer}>
-              {YEARS.map(year => (
-                <FilterChip
-                  key={year}
-                  label={year === 'Postgrad' ? year : `Year ${year}`}
-                  selected={filters.years.includes(year)}
-                  onPress={() => toggleArrayFilter('years', year)}
-                />
-              ))}
+          {/* Year — collapsible, single row */}
+          <CollapsibleSection
+            icon="calendar-outline"
+            title="Year"
+            count={filters.years.length}
+            summary={filters.years.join(', ')}
+            open={openSection === 'year'}
+            onToggle={() => toggleSection('year')}
+            colors={colors}
+            styles={styles}
+          >
+            <View style={styles.yearRow}>
+              {YEARS.map((year) => {
+                const selected = filters.years.includes(year);
+                return (
+                  <TouchableOpacity
+                    key={year}
+                    style={[
+                      styles.yearBtn,
+                      selected && { backgroundColor: colors.primary, borderColor: colors.primary },
+                    ]}
+                    onPress={() => toggleArrayFilter('years', year)}
+                    activeOpacity={0.85}
+                  >
+                    <Text
+                      style={[
+                        styles.yearBtnText,
+                        selected && { color: '#fff' },
+                      ]}
+                    >
+                      {year}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          </View>
+          </CollapsibleSection>
 
-          {/* Study Style */}
+          {/* Study Style — segmented bar with description */}
           <View style={styles.section}>
             {renderSectionHeader('book-outline', 'Study Style', filters.studyStyles?.length || 0)}
-            <View style={styles.chipContainer}>
-              {STUDY_STYLES.map((s) => (
-                <FilterChip
-                  key={s}
-                  label={s}
-                  selected={(filters.studyStyles || []).includes(s)}
-                  onPress={() => toggleArrayFilter('studyStyles', s)}
-                />
-              ))}
+            <View style={styles.studyBar}>
+              {STUDY_STYLE_OPTIONS.map((opt) => {
+                const selected = (filters.studyStyles || [])[0] === opt.key;
+                return (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={[
+                      styles.studyBarBtn,
+                      selected && styles.studyBarBtnActive,
+                    ]}
+                    onPress={() => selectStudyStyle(opt.key)}
+                    activeOpacity={0.85}
+                  >
+                    <Text
+                      style={[
+                        styles.studyBarText,
+                        selected && styles.studyBarTextActive,
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
+            {(() => {
+              const selectedKey = (filters.studyStyles || [])[0];
+              const opt = STUDY_STYLE_OPTIONS.find((o) => o.key === selectedKey);
+              return opt ? (
+                <Text style={styles.studyDescription}>{opt.description}</Text>
+              ) : (
+                <Text style={styles.studyHint}>
+                  Pick one to filter by how matches like to study.
+                </Text>
+              );
+            })()}
           </View>
 
-          {/* Age Range */}
+          {/* Age Range — single range slider with both thumbs */}
           <View style={styles.section}>
             {renderSectionHeader(
               'person-outline',
-              'Age Range',
+              'Age',
               filters.ageRange[0] !== 18 || filters.ageRange[1] !== 99 ? 1 : 0,
             )}
-            <View style={styles.ageCard}>
-              <View style={styles.ageValueRow}>
-                <View style={styles.ageValueBubble}>
-                  <Text style={styles.ageValueText}>{filters.ageRange[0]}</Text>
-                </View>
-                <View style={styles.ageDash} />
-                <View style={styles.ageValueBubble}>
-                  <Text style={styles.ageValueText}>{filters.ageRange[1]}</Text>
-                </View>
+            <View style={styles.ageBubbleRow}>
+              <View style={styles.ageValueBubble}>
+                <Text style={styles.ageValueText}>{filters.ageRange[0]}</Text>
               </View>
-
-              <View style={styles.sliderGroup}>
-                <Text style={styles.sliderLabel}>Min Age</Text>
-                <View style={styles.sliderRow}>
-                  <Text style={styles.sliderBound}>18</Text>
-                  <Slider
-                    style={styles.slider}
-                    minimumValue={18}
-                    maximumValue={99}
-                    step={1}
-                    value={filters.ageRange[0]}
-                    onValueChange={value =>
-                      setFilters({
-                        ...filters,
-                        ageRange: [value, Math.max(value, filters.ageRange[1])],
-                      })
-                    }
-                    minimumTrackTintColor={colors.primary}
-                    maximumTrackTintColor={colors.border}
-                    thumbTintColor={colors.primary}
-                  />
-                  <Text style={styles.sliderBound}>99</Text>
-                </View>
+              <View style={styles.ageDash} />
+              <View style={styles.ageValueBubble}>
+                <Text style={styles.ageValueText}>{filters.ageRange[1]}</Text>
               </View>
-
-              <View style={styles.sliderGroup}>
-                <Text style={styles.sliderLabel}>Max Age</Text>
-                <View style={styles.sliderRow}>
-                  <Text style={styles.sliderBound}>18</Text>
-                  <Slider
-                    style={styles.slider}
-                    minimumValue={18}
-                    maximumValue={99}
-                    step={1}
-                    value={filters.ageRange[1]}
-                    onValueChange={value =>
-                      setFilters({
-                        ...filters,
-                        ageRange: [Math.min(value, filters.ageRange[0]), value],
-                      })
-                    }
-                    minimumTrackTintColor={colors.primary}
-                    maximumTrackTintColor={colors.border}
-                    thumbTintColor={colors.primary}
-                  />
-                  <Text style={styles.sliderBound}>99</Text>
-                </View>
-              </View>
+            </View>
+            <RangeSlider
+              min={18}
+              max={99}
+              step={1}
+              value={filters.ageRange}
+              onChange={(next) => setFilters({ ...filters, ageRange: next })}
+              colors={colors}
+            />
+            <View style={styles.ageBoundsRow}>
+              <Text style={styles.sliderBound}>18</Text>
+              <Text style={styles.sliderBound}>99</Text>
             </View>
           </View>
         </ScrollView>
@@ -535,6 +624,117 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     paddingVertical: spacing.sm,
   },
 
+  // Collapsible sections
+  collapseWrap: {
+    marginBottom: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBackground,
+    overflow: 'hidden',
+  },
+  collapseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  collapseSummary: {
+    flex: 1,
+    textAlign: 'right',
+    fontSize: 13,
+    color: colors.textTertiary,
+    fontFamily: 'Inter_500Medium',
+    marginLeft: 8,
+  },
+  collapseBody: {
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+  },
+
+  // Year row (single line)
+  yearRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  yearBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.backgroundSecondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  yearBtnText: {
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
+    color: colors.textPrimary,
+  },
+
+  // Study style bar
+  studyBar: {
+    flexDirection: 'row',
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.md,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.sm,
+  },
+  studyBarBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: borderRadius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  studyBarBtnActive: {
+    backgroundColor: colors.primary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  studyBarText: {
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
+    color: colors.textSecondary,
+  },
+  studyBarTextActive: {
+    color: '#fff',
+  },
+  studyDescription: {
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+    color: colors.textSecondary,
+    lineHeight: 19,
+    paddingHorizontal: 4,
+  },
+  studyHint: {
+    fontSize: 12,
+    fontFamily: 'Inter_500Medium',
+    color: colors.textTertiary,
+    paddingHorizontal: 4,
+  },
+
+  // Age
+  ageBubbleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: spacing.md,
+  },
+  ageBoundsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    marginTop: -4,
+  },
+
   // Chips
   chipContainer: {
     flexDirection: 'row',
@@ -585,21 +785,7 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     alignItems: 'center',
   },
 
-  // Age Range
-  ageCard: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  ageValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xl,
-    gap: 12,
-  },
+  // Age bubbles
   ageValueBubble: {
     width: 56,
     height: 56,
@@ -619,31 +805,10 @@ const createStyles = (colors, shadows) => StyleSheet.create({
     borderRadius: 1,
     backgroundColor: colors.border,
   },
-  sliderGroup: {
-    marginBottom: spacing.md,
-  },
-  sliderLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter_600SemiBold',
-    color: colors.textTertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    marginBottom: 4,
-  },
-  sliderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  slider: {
-    flex: 1,
-    marginHorizontal: spacing.sm,
-  },
   sliderBound: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.textTertiary,
     fontFamily: 'Inter_500Medium',
-    width: 24,
-    textAlign: 'center',
   },
 
   // Footer
