@@ -1,8 +1,9 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, StyleSheet, PanResponder, Text } from 'react-native';
 
-const THUMB = 26;
+const THUMB = 28;
 const TRACK_HEIGHT = 4;
+const HIT_SLOP = { top: 12, bottom: 12, left: 12, right: 12 };
 
 export default function RangeSlider({
   min,
@@ -13,54 +14,66 @@ export default function RangeSlider({
   colors,
 }) {
   const [width, setWidth] = useState(0);
-  const [low, high] = value;
 
-  const valueToPos = useCallback(
-    (v) => {
-      if (width <= 0) return 0;
-      const ratio = (v - min) / (max - min || 1);
-      return Math.max(0, Math.min(1, ratio)) * (width - THUMB);
-    },
-    [width, min, max]
-  );
+  // Refs hold the most recent values for use inside PanResponder closures
+  // (which are created once on first render and otherwise see stale state).
+  const widthRef = useRef(0);
+  const minRef = useRef(min);
+  const maxRef = useRef(max);
+  const stepRef = useRef(step);
+  const valueRef = useRef(value);
+  const onChangeRef = useRef(onChange);
+  widthRef.current = width;
+  minRef.current = min;
+  maxRef.current = max;
+  stepRef.current = step;
+  valueRef.current = value;
+  onChangeRef.current = onChange;
 
-  const posToValue = useCallback(
-    (p) => {
-      if (width <= 0) return min;
-      const ratio = Math.max(0, Math.min(1, p / (width - THUMB)));
-      const raw = min + ratio * (max - min);
-      return Math.round(raw / step) * step;
-    },
-    [width, min, max, step]
-  );
+  const usableWidth = () => Math.max(0, widthRef.current - THUMB);
 
-  // Refs to keep latest values inside PanResponder
-  const lowRef = useRef(low);
-  const highRef = useRef(high);
-  lowRef.current = low;
-  highRef.current = high;
-  const startRef = useRef({ low: low, high: high });
+  const valueToPos = (v) => {
+    const w = usableWidth();
+    if (w <= 0) return 0;
+    const ratio = (v - minRef.current) / (maxRef.current - minRef.current || 1);
+    return Math.max(0, Math.min(1, ratio)) * w;
+  };
+
+  const posToValue = (p) => {
+    const w = usableWidth();
+    if (w <= 0) return minRef.current;
+    const ratio = Math.max(0, Math.min(1, p / w));
+    const raw = minRef.current + ratio * (maxRef.current - minRef.current);
+    return Math.round(raw / stepRef.current) * stepRef.current;
+  };
+
+  const startRef = useRef([min, max]);
 
   const makePan = (which) =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onStartShouldSetPanResponderCapture: () => true,
       onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
       onPanResponderTerminationRequest: () => false,
+      onShouldBlockNativeResponder: () => true,
       onPanResponderGrant: () => {
-        startRef.current = { low: lowRef.current, high: highRef.current };
+        startRef.current = [...valueRef.current];
       },
       onPanResponderMove: (_, gesture) => {
-        if (width <= 0) return;
-        const startVal = which === 'low' ? startRef.current.low : startRef.current.high;
-        const startPos = valueToPos(startVal);
-        const next = posToValue(startPos + gesture.dx);
+        if (usableWidth() <= 0) return;
+        const [startLow, startHigh] = startRef.current;
+        const [curLow, curHigh] = valueRef.current;
         if (which === 'low') {
-          const clamped = Math.min(next, highRef.current);
-          if (clamped !== lowRef.current) onChange([clamped, highRef.current]);
+          const startPos = valueToPos(startLow);
+          const next = posToValue(startPos + gesture.dx);
+          const clamped = Math.min(next, curHigh);
+          if (clamped !== curLow) onChangeRef.current([clamped, curHigh]);
         } else {
-          const clamped = Math.max(next, lowRef.current);
-          if (clamped !== highRef.current) onChange([lowRef.current, clamped]);
+          const startPos = valueToPos(startHigh);
+          const next = posToValue(startPos + gesture.dx);
+          const clamped = Math.max(next, curLow);
+          if (clamped !== curHigh) onChangeRef.current([curLow, clamped]);
         }
       },
     });
@@ -68,6 +81,7 @@ export default function RangeSlider({
   const lowPan = useRef(makePan('low')).current;
   const highPan = useRef(makePan('high')).current;
 
+  const [low, high] = value;
   const lowPos = valueToPos(low);
   const highPos = valueToPos(high);
 
@@ -89,6 +103,7 @@ export default function RangeSlider({
       />
 
       <View
+        hitSlop={HIT_SLOP}
         style={[
           styles.thumb,
           {
@@ -102,6 +117,7 @@ export default function RangeSlider({
         <Text style={[styles.thumbLabel, { color: colors.textPrimary }]}>{low}</Text>
       </View>
       <View
+        hitSlop={HIT_SLOP}
         style={[
           styles.thumb,
           {
@@ -120,8 +136,9 @@ export default function RangeSlider({
 
 const styles = StyleSheet.create({
   wrap: {
-    height: THUMB + 22,
+    height: THUMB + 26,
     justifyContent: 'center',
+    marginHorizontal: 4,
   },
   track: {
     height: TRACK_HEIGHT,
@@ -145,9 +162,9 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },

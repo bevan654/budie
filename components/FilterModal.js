@@ -341,28 +341,52 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
                   )}
                 </View>
                 {(filters.courses || []).length > 0 && (
-                  <View style={styles.chipContainer}>
-                    {filters.courses.map((c) => (
-                      <FilterChip
+                  <View style={styles.dropdownList}>
+                    {filters.courses.map((c, i) => (
+                      <TouchableOpacity
                         key={c}
-                        label={c}
-                        selected
                         onPress={() => toggleArrayFilter('courses', c)}
-                      />
+                        activeOpacity={0.7}
+                        style={[
+                          styles.dropdownRow,
+                          i === filters.courses.length - 1 && styles.dropdownRowLast,
+                        ]}
+                      >
+                        <Text style={styles.dropdownRowText}>{c}</Text>
+                        <Ionicons name="close" size={18} color={colors.textTertiary} />
+                      </TouchableOpacity>
                     ))}
                   </View>
                 )}
               </>
             ) : (
-              <View style={styles.chipContainer}>
-                {BROAD_DISCIPLINES.map((d) => (
-                  <FilterChip
-                    key={d}
-                    label={d}
-                    selected={filters.courses.includes(d)}
-                    onPress={() => toggleArrayFilter('courses', d)}
-                  />
-                ))}
+              <View style={styles.dropdownList}>
+                {BROAD_DISCIPLINES.map((d, i) => {
+                  const selected = filters.courses.includes(d);
+                  return (
+                    <TouchableOpacity
+                      key={d}
+                      onPress={() => toggleArrayFilter('courses', d)}
+                      activeOpacity={0.7}
+                      style={[
+                        styles.dropdownRow,
+                        i === BROAD_DISCIPLINES.length - 1 && styles.dropdownRowLast,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.dropdownRowText,
+                          selected && { color: colors.primary, fontFamily: 'Inter_600SemiBold' },
+                        ]}
+                      >
+                        {d}
+                      </Text>
+                      {selected ? (
+                        <Ionicons name="checkmark" size={20} color={colors.primary} />
+                      ) : null}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             )}
           </CollapsibleSection>
@@ -453,15 +477,6 @@ export default function FilterModal({ visible, onClose, initialFilters, onApply 
               'Age',
               filters.ageRange[0] !== 18 || filters.ageRange[1] !== 99 ? 1 : 0,
             )}
-            <View style={styles.ageBubbleRow}>
-              <View style={styles.ageValueBubble}>
-                <Text style={styles.ageValueText}>{filters.ageRange[0]}</Text>
-              </View>
-              <View style={styles.ageDash} />
-              <View style={styles.ageValueBubble}>
-                <Text style={styles.ageValueText}>{filters.ageRange[1]}</Text>
-              </View>
-            </View>
             <RangeSlider
               min={18}
               max={99}
@@ -650,6 +665,35 @@ const createStyles = (colors, shadows) => StyleSheet.create({
   collapseBody: {
     paddingHorizontal: 14,
     paddingBottom: 14,
+  },
+
+  // Dropdown-style list (proper menu)
+  dropdownList: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    marginTop: spacing.sm,
+  },
+  dropdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  dropdownRowLast: {
+    borderBottomWidth: 0,
+  },
+  dropdownRowText: {
+    fontSize: 14,
+    fontFamily: 'Inter_500Medium',
+    color: colors.textPrimary,
+    flex: 1,
+    marginRight: 12,
   },
 
   // Year row (single line)
